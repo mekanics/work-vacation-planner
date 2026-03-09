@@ -78,8 +78,7 @@ export default async function MonthPage({ params }: PageProps) {
     const isHoliday = holidayMap.has(iso);
     const storedType = dayMap.get(iso);
     const dayType =
-      storedType === 'vacation' ? 'vacation' :
-      storedType === 'day_off' ? 'day_off' : 'working';
+      storedType === 'vacation' ? 'vacation' : 'working';
 
     return {
       date: iso,
@@ -191,10 +190,6 @@ export default async function MonthPage({ params }: PageProps) {
         <div className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded-sm bg-green-100 border border-green-400" />
           <span>Vacation</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded-sm bg-amber-100 border border-amber-400" />
-          <span>Day off</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded-sm bg-blue-100 border border-blue-400" />

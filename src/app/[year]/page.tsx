@@ -21,7 +21,6 @@ const MONTH_NAMES = [
 
 const DOT_COLORS: Record<string, string> = {
   vacation: 'bg-green-400',
-  day_off: 'bg-amber-400',
   holiday: 'bg-blue-400',
   weekend: 'bg-gray-300',
   working: 'bg-gray-100',
@@ -86,8 +85,7 @@ export default async function YearPage({ params }: PageProps) {
       const isHoliday = holidayMap.has(iso);
       const storedType = dayMap.get(iso);
       const dayType =
-        storedType === 'vacation' ? 'vacation' :
-        storedType === 'day_off' ? 'day_off' : 'working';
+        storedType === 'vacation' ? 'vacation' : 'working';
 
       return {
         date: iso,
@@ -115,11 +113,10 @@ export default async function YearPage({ params }: PageProps) {
       </div>
 
       {/* Year summary stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-8">
         <StatCard label="Working days" value={yearSummary.working_days} color="text-gray-900" />
         <StatCard label="Vacation days" value={yearSummary.vacation_days} color="text-green-700" />
         <StatCard label="Public holidays" value={yearSummary.public_holidays} color="text-blue-700" />
-        <StatCard label="Days off" value={yearSummary.day_off_days} color="text-amber-700" />
       </div>
 
       {/* Projects summary */}
@@ -206,8 +203,6 @@ export default async function YearPage({ params }: PageProps) {
                   dotColor = DOT_COLORS.weekend;
                 } else if (day.dayType === 'vacation') {
                   dotColor = DOT_COLORS.vacation;
-                } else if (day.dayType === 'day_off') {
-                  dotColor = DOT_COLORS.day_off;
                 } else {
                   dotColor = DOT_COLORS.working;
                 }
@@ -223,7 +218,7 @@ export default async function YearPage({ params }: PageProps) {
             </div>
             {/* Working day count */}
             <div className="mt-2 text-xs text-gray-400">
-              {calDays.filter(d => d.isCurrentMonth && !d.isWeekend && !d.isHoliday && d.dayType !== 'vacation' && d.dayType !== 'day_off').length} working days
+              {calDays.filter(d => d.isCurrentMonth && !d.isWeekend && !d.isHoliday && d.dayType !== 'vacation').length} working days
             </div>
           </Link>
         ))}
@@ -233,7 +228,6 @@ export default async function YearPage({ params }: PageProps) {
       <div className="flex flex-wrap gap-4 mt-6 text-xs text-gray-500">
         <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-gray-100 border border-gray-200" /><span>Working</span></div>
         <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-green-400" /><span>Vacation</span></div>
-        <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-amber-400" /><span>Day off</span></div>
         <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-blue-400" /><span>Holiday</span></div>
         <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-gray-300" /><span>Weekend</span></div>
       </div>

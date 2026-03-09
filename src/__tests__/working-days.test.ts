@@ -97,16 +97,6 @@ describe('calculateWorkingDays', () => {
     expect(result.working_days).toBe(0);
   });
 
-  it('day_off on a weekday — day_off_days incremented, working_days reduced', async () => {
-    // Wednesday 2024-01-10 is a day_off
-    (db.where as any).mockResolvedValue([{ date: '2024-01-10', dayType: 'day_off' }]);
-    (getHolidayDateSet as any).mockResolvedValue(new Set<string>());
-
-    const result = await calculateWorkingDays('2024-01-08', '2024-01-12');
-    expect(result.day_off_days).toBe(1);
-    expect(result.working_days).toBe(4);
-  });
-
   it('holiday + vacation same day — holiday wins, vacation_days = 0', async () => {
     // Tuesday 2024-01-09 is both a holiday and vacation
     (db.where as any).mockResolvedValue([{ date: '2024-01-09', dayType: 'vacation' }]);
@@ -178,15 +168,4 @@ describe('calculateWorkingDays — working weekends', () => {
     expect(result.working_days).toBe(0);
   });
 
-  it('day_off beats working_weekend — day_off wins, working_days = 0', async () => {
-    // Sat 2024-01-06 is working_weekend AND day_off
-    (db.where as any).mockResolvedValue([
-      { date: '2024-01-06', dayType: 'working_weekend' },
-      { date: '2024-01-06', dayType: 'day_off' },
-    ]);
-    (getHolidayDateSet as any).mockResolvedValue(new Set<string>());
-
-    const result = await calculateWorkingDays('2024-01-06', '2024-01-07');
-    expect(result.working_days).toBe(0);
-  });
 });

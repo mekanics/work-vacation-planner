@@ -18,7 +18,7 @@ interface BulkWeekdayControlProps {
 export function BulkWeekdayControl({ year }: BulkWeekdayControlProps) {
   const router = useRouter();
   const [weekday, setWeekday] = useState(5); // Default: Friday
-  const [dayType, setDayType] = useState<'day_off' | 'working'>('day_off');
+  const [dayType, setDayType] = useState<'vacation' | 'working'>('vacation');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
 
@@ -34,7 +34,7 @@ export function BulkWeekdayControl({ year }: BulkWeekdayControlProps) {
       const data = await res.json();
       if (res.ok) {
         const label = WEEKDAYS.find(w => w.value === weekday)?.label ?? 'days';
-        setResult(`✓ ${data.count} ${label}s in ${year} set to "${dayType === 'day_off' ? 'Day Off' : 'Working'}"`);
+        setResult(`✓ ${data.count} ${label}s in ${year} set to "${dayType === 'vacation' ? 'Vacation' : 'Working'}"`);
         router.refresh();
       } else {
         setResult(`Error: ${data.error}`);
@@ -47,7 +47,7 @@ export function BulkWeekdayControl({ year }: BulkWeekdayControlProps) {
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-3 p-3 bg-amber-50 border border-amber-200 rounded text-sm">
+    <div className="flex flex-wrap items-center gap-3 p-3 bg-green-50 border border-green-200 rounded text-sm">
       <span className="text-gray-600 font-medium">Bulk set all</span>
       <select
         value={weekday}
@@ -61,16 +61,16 @@ export function BulkWeekdayControl({ year }: BulkWeekdayControlProps) {
       <span className="text-gray-600">in {year} to</span>
       <select
         value={dayType}
-        onChange={(e) => setDayType(e.target.value as 'day_off' | 'working')}
+        onChange={(e) => setDayType(e.target.value as 'vacation' | 'working')}
         className="border border-gray-300 rounded-sm px-2 py-1 text-sm bg-white"
       >
-        <option value="day_off">Day Off</option>
+        <option value="vacation">Vacation</option>
         <option value="working">Working (clear)</option>
       </select>
       <button
         onClick={handleApply}
         disabled={loading}
-        className="px-3 py-1 bg-amber-500 text-white rounded-sm hover:bg-amber-600 disabled:opacity-50 transition-colors font-medium"
+        className="px-3 py-1 bg-green-500 text-white rounded-sm hover:bg-green-600 disabled:opacity-50 transition-colors font-medium"
       >
         {loading ? 'Applying…' : 'Apply'}
       </button>

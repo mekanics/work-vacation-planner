@@ -33,7 +33,6 @@ export function DayCell({
   // Weekdays only participate in drag-select; weekends have their own click toggle
   const isInteractive = !day.isWeekend && !day.isHoliday && day.isCurrentMonth;
   const isWeekendClickable = day.isWeekend && !day.isHoliday && day.isCurrentMonth;
-  const isDayOff = day.dayType === 'day_off';
   const isVacation = day.dayType === 'vacation';
   const isToday = day.date === TODAY;
 
@@ -123,14 +122,11 @@ export function DayCell({
         // Public holiday
         day.isCurrentMonth && day.isHoliday &&
           'bg-blue-100 border-blue-400 cursor-default',
-        // Day off (structural schedule gap — amber/orange)
-        day.isCurrentMonth && !day.isHoliday && isDayOff &&
-          'bg-amber-100 border-amber-400 cursor-pointer hover:bg-amber-200',
         // Vacation
-        day.isCurrentMonth && !day.isWeekend && !day.isHoliday && !isDayOff && isVacation &&
+        day.isCurrentMonth && !day.isWeekend && !day.isHoliday && isVacation &&
           'bg-green-100 border-green-400 cursor-pointer hover:bg-green-200',
         // Working (default) — subtle slate so cells are visible on white bg
-        day.isCurrentMonth && !day.isWeekend && !day.isHoliday && !isDayOff && !isVacation &&
+        day.isCurrentMonth && !day.isWeekend && !day.isHoliday && !isVacation &&
           'bg-slate-50 border-slate-200 cursor-pointer hover:bg-slate-100',
         // Drag range highlight
         isInRange && 'ring-2 ring-indigo-400 ring-inset bg-indigo-50 border-indigo-300'
@@ -198,22 +194,13 @@ export function DayCell({
         </>
       )}
 
-      {/* Day off: dot on mobile, label on sm+ */}
-      {day.isCurrentMonth && !day.isHoliday && isDayOff && (
-        <>
-          <span className="absolute bottom-1 left-1 w-2 h-2 rounded-full bg-amber-500 sm:hidden" />
-          <span className="text-xs text-amber-600 mt-0.5 hidden sm:block">🔕 Day off</span>
-        </>
-      )}
-
       {/* Day number — pinned to bottom of cell */}
       <span
         className={cn(
           'font-medium text-xs sm:text-sm mt-auto',
           isToday && day.isCurrentMonth && 'text-indigo-700 font-bold',
           day.isHoliday && 'text-blue-700',
-          isDayOff && !day.isHoliday && 'text-amber-700',
-          isVacation && !day.isHoliday && !isDayOff && 'text-green-700',
+          isVacation && !day.isHoliday && 'text-green-700',
           isWorkingWeekend && day.isWeekend && 'text-indigo-700'
         )}
       >

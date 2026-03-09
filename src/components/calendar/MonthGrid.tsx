@@ -49,8 +49,8 @@ export function MonthGrid({ days, year, month }: MonthGridProps) {
     while (cur <= end) {
       const iso = `${cur.getFullYear()}-${pad(cur.getMonth() + 1)}-${pad(cur.getDate())}`;
       const d = dayMap.get(iso);
-      // Skip weekends, holidays, day_off (those are structural / fixed)
-      if (d && !d.isWeekend && !d.isHoliday && d.dayType !== 'day_off') {
+      // Skip weekends and holidays (those are structural / fixed)
+      if (d && !d.isWeekend && !d.isHoliday) {
         result.push(iso);
       }
       cur.setDate(cur.getDate() + 1);
@@ -78,7 +78,7 @@ export function MonthGrid({ days, year, month }: MonthGridProps) {
   };
 
   const singleToggle = async (date: string, currentType: DayType) => {
-    if (currentType === 'vacation' || currentType === 'day_off') {
+    if (currentType === 'vacation') {
       // Clear the explicit state → back to implicit "working"
       await fetch(`/api/days/${date}`, { method: 'DELETE' });
     } else {
@@ -150,7 +150,7 @@ export function MonthGrid({ days, year, month }: MonthGridProps) {
 
   const handleWeekClick = (week: CalendarDay[]) => {
     const workable = week.filter(
-      (d) => d.isCurrentMonth && !d.isWeekend && !d.isHoliday && d.dayType !== 'day_off'
+      (d) => d.isCurrentMonth && !d.isWeekend && !d.isHoliday
     );
     if (workable.length === 0) return;
     // Toggle: if all are vacation, clear them; otherwise mark as vacation

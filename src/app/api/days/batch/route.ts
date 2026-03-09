@@ -4,7 +4,7 @@ import { days } from '@/lib/db/schema';
 import { inArray } from 'drizzle-orm';
 import { isValidISODate } from '@/lib/utils/dates';
 
-const VALID_DAY_TYPES = ['vacation', 'working', 'day_off'];
+const VALID_DAY_TYPES = ['vacation', 'working'];
 
 /**
  * POST /api/days/batch
@@ -12,7 +12,7 @@ const VALID_DAY_TYPES = ['vacation', 'working', 'day_off'];
  *
  * Bulk upsert or delete day records.
  * - day_type === 'working' → delete records (working is the implicit default)
- * - day_type === 'vacation' | 'day_off' → bulk upsert
+ * - day_type === 'vacation' → bulk upsert
  */
 export async function POST(request: NextRequest) {
   try {

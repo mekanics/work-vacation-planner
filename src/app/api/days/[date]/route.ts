@@ -4,7 +4,7 @@ import { days } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { isValidISODate } from '@/lib/utils/dates';
 
-const VALID_DAY_TYPES = ['vacation', 'working', 'day_off', 'working_weekend'];
+const VALID_DAY_TYPES = ['vacation', 'working', 'working_weekend'];
 
 export async function PUT(
   request: NextRequest,

@@ -14,7 +14,7 @@ const PRESET_COLOURS = [
 ];
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const WEEKDAY_NUMS = [1, 2, 3, 4, 5]; // Mon–Fri by default
+const WEEKDAY_NUMS = [1, 2, 3, 4, 5, 6, 0]; // Mon–Sun
 
 interface ProjectFormState {
   name: string;

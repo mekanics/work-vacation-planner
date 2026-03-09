@@ -1,4 +1,4 @@
-export type DayType = 'working' | 'vacation' | 'day_off' | 'working_weekend';
+export type DayType = 'working' | 'vacation' | 'working_weekend';
 
 export interface DayRecord {
   date: string;
@@ -42,7 +42,6 @@ export interface MonthSummary {
   public_holidays: number;
   vacation_days: number;
   working_days: number;
-  day_off_days: number;
 }
 
 export interface YearSummary {
@@ -50,6 +49,5 @@ export interface YearSummary {
   vacation_budget: number;
   vacation_used: number;
   vacation_remaining: number;
-  day_off_days: number;
   months: MonthSummary[];
 }

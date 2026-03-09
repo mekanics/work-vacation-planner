@@ -3,7 +3,7 @@ import { db } from '@/lib/db';
 import { days } from '@/lib/db/schema';
 import { inArray } from 'drizzle-orm';
 
-const VALID_DAY_TYPES = ['vacation', 'working', 'day_off'];
+const VALID_DAY_TYPES = ['vacation', 'working'];
 
 /**
  * POST /api/days/bulk-weekday
@@ -12,8 +12,8 @@ const VALID_DAY_TYPES = ['vacation', 'working', 'day_off'];
  * Sets all days matching a specific weekday in a year to the given day_type.
  * weekday uses JS convention: 0 = Sunday, 1 = Monday, ..., 5 = Friday, 6 = Saturday
  *
- * Example: { year: 2026, weekday: 5, day_type: 'day_off' }
- * → marks all Fridays in 2026 as day_off
+ * Example: { year: 2026, weekday: 5, day_type: 'vacation' }
+ * → marks all Fridays in 2026 as vacation
  */
 export async function POST(request: NextRequest) {
   try {
