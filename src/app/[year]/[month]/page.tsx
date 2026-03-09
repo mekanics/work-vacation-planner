@@ -1,0 +1,216 @@
+import { notFound } from 'next/navigation';
+import Link from 'next/link';
+import {
+  startOfMonth,
+  endOfMonth,
+  eachDayOfInterval,
+  getDay,
+  format,
+  isSameMonth,
+  subDays,
+  addDays,
+} from 'date-fns';
+import { db } from '@/lib/db';
+import { days } from '@/lib/db/schema';
+import { and, gte, lte } from 'drizzle-orm';
+import { getHolidaysForYear } from '@/lib/services/holidays';
+import { calculateWorkingDays } from '@/lib/services/working-days';
+import { getProjects } from '@/lib/services/projects';
+import { MonthGrid } from '@/components/calendar/MonthGrid';
+import { MonthNav } from '@/components/calendar/MonthNav';
+import { SummaryBar } from '@/components/summary/SummaryBar';
+import { settings } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
+import type { CalendarDay } from '@/types';
+
+interface PageProps {
+  params: Promise<{
+    year: string;
+    month: string;
+  }>;
+}
+
+export default async function MonthPage({ params }: PageProps) {
+  const { year: yearStr, month: monthStr } = await params;
+
+  const year = parseInt(yearStr, 10);
+  const month = parseInt(monthStr, 10);
+
+  if (isNaN(year) || isNaN(month) || month < 1 || month > 12 || year < 2000 || year > 2100) {
+    notFound();
+  }
+
+  const monthStart = startOfMonth(new Date(year, month - 1, 1));
+  const monthEnd = endOfMonth(monthStart);
+
+  // Get holidays for this year (and adjacent months if needed)
+  const holidays = await getHolidaysForYear(year);
+  const holidayMap = new Map(holidays.map((h) => [h.date, h.name]));
+
+  // Get custom day records for this month range
+  const from = format(monthStart, 'yyyy-MM-dd');
+  const to = format(monthEnd, 'yyyy-MM-dd');
+
+  // Also fetch days from adjacent months that appear in the calendar grid
+  // Build calendar grid: weeks starting Monday
+  const startDow = getDay(monthStart); // 0=Sun, 1=Mon, ...
+  // Convert to Monday-based (Mon=0, ... Sun=6)
+  const offset = startDow === 0 ? 6 : startDow - 1;
+
+  // Grid start and end dates
+  const gridStart = subDays(monthStart, offset);
+  const gridEnd = addDays(monthEnd, 6 - ((getDay(monthEnd) === 0 ? 7 : getDay(monthEnd)) - 1));
+  const gridStartStr = format(gridStart, 'yyyy-MM-dd');
+  const gridEndStr = format(gridEnd, 'yyyy-MM-dd');
+
+  const dayRows = await db
+    .select()
+    .from(days)
+    .where(and(gte(days.date, gridStartStr), lte(days.date, gridEndStr)));
+
+  const dayMap = new Map(dayRows.map((d) => [d.date, d.dayType]));
+
+  // Build calendar days grid
+  const gridDates = eachDayOfInterval({ start: gridStart, end: gridEnd });
+
+  const calendarDays: CalendarDay[] = gridDates.map((date) => {
+    const iso = format(date, 'yyyy-MM-dd');
+    const dow = getDay(date); // 0=Sun, 6=Sat
+    const isWeekend = dow === 0 || dow === 6;
+    const isHoliday = holidayMap.has(iso);
+    const storedType = dayMap.get(iso);
+    const dayType =
+      storedType === 'vacation' ? 'vacation' :
+      storedType === 'day_off' ? 'day_off' : 'working';
+
+    return {
+      date: iso,
+      dayType,
+      isWeekend,
+      isHoliday,
+      holidayName: holidayMap.get(iso),
+      isCurrentMonth: isSameMonth(date, monthStart),
+    };
+  });
+
+  // Load projects for colour enrichment
+  const allProjects = await getProjects();
+
+  // Enrich each calendar day with active project colours
+  const enrichedCalendarDays: CalendarDay[] = calendarDays.map((day) => {
+    if (day.isWeekend || !day.isCurrentMonth) return day;
+
+    const dow = getDay(new Date(day.date + 'T12:00:00')); // 0=Sun, 1=Mon, ..., 6=Sat
+    const projectColours: string[] = [];
+
+    for (const project of allProjects) {
+      // Check date range
+      if (project.startDate && day.date < project.startDate) continue;
+      if (project.endDate && day.date > project.endDate) continue;
+      // Check weekday mask
+      if (!project.weekdays.includes(dow)) continue;
+      projectColours.push(project.colour);
+    }
+
+    return { ...day, projectColours };
+  });
+
+  // Get month summary for stats
+  const summary = await calculateWorkingDays(from, to);
+
+  // Get vacation budget
+  const budgetKey = `vacation_budget_${year}`;
+  const budgetRow = await db.select().from(settings).where(eq(settings.key, budgetKey)).then(rows => rows[0]);
+  const vacationBudget = budgetRow ? parseInt(budgetRow.value, 10) : 20;
+
+  // Get total vacation used this year for budget display
+  const yearFrom = `${year}-01-01`;
+  const yearTo = `${year}-12-31`;
+  const yearSummary = await calculateWorkingDays(yearFrom, yearTo);
+
+  const monthLabel = format(monthStart, 'MMMM yyyy');
+
+  return (
+    <div className="max-w-5xl mx-auto px-4 py-6">
+      {/* Back link */}
+      <div className="mb-4">
+        <Link href={`/${year}`} className="text-sm text-gray-500 hover:text-gray-800 transition-colors">
+          ← {year} overview
+        </Link>
+      </div>
+
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">{monthLabel}</h1>
+          <p className="text-xs text-gray-400 mt-1">
+            Click to toggle · drag for range · shift-click · week № = whole week
+          </p>
+        </div>
+        <MonthNav year={year} month={month} />
+      </div>
+
+      {/* Summary bar */}
+      <div className="mb-6">
+        <SummaryBar
+          working={summary.working_days}
+          vacation={summary.vacation_days}
+          holidays={summary.public_holidays}
+          weekdays={summary.weekdays}
+          vacationBudget={vacationBudget}
+          vacationUsedTotal={yearSummary.vacation_days}
+        />
+      </div>
+
+      {/* Legend */}
+      <div className="flex flex-wrap gap-3 mb-4 text-xs text-gray-500">
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded-sm bg-white border border-gray-200" />
+          <span>Working day</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded-sm bg-green-100 border border-green-400" />
+          <span>Vacation</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded-sm bg-amber-100 border border-amber-400" />
+          <span>Day off</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded-sm bg-blue-100 border border-blue-400" />
+          <span>Public holiday</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded-sm bg-slate-200 border border-slate-300" />
+          <span>Weekend</span>
+        </div>
+      </div>
+
+      {/* Project legend */}
+      {allProjects.length > 0 && (
+        <div className="flex flex-wrap gap-3 mb-3 text-xs">
+          {allProjects.map((project) => (
+            <div key={project.id} className="flex items-center gap-1.5">
+              <div
+                className="w-3 h-3 rounded-sm"
+                style={{ backgroundColor: project.colour }}
+              />
+              <span className="text-gray-600">{project.name}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Calendar grid */}
+      <MonthGrid days={enrichedCalendarDays} year={year} month={month} />
+    </div>
+  );
+}
+
+export async function generateMetadata({ params }: PageProps) {
+  const { year, month } = await params;
+  const monthStart = new Date(parseInt(year), parseInt(month) - 1, 1);
+  return {
+    title: `${format(monthStart, 'MMMM yyyy')} · Work Planner`,
+  };
+}

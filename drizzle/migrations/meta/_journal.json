@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1773042335377,
+      "tag": "0000_aspiring_gravity",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1773042700000,
+      "tag": "0001_add_projects",
+      "breakpoints": true
+    }
+  ]
+}
