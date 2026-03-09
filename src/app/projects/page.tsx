@@ -1,8 +1,6 @@
 import Link from 'next/link';
-import { format } from 'date-fns';
 import { getProjects, calculateProjectWorkingDays } from '@/lib/services/projects';
-import { ProjectsManager } from '@/components/projects/ProjectsManager';
-import { ProjectCalendarLinks } from '@/components/projects/ProjectCalendarLinks';
+import { ProjectsList } from '@/components/projects/ProjectsList';
 
 export const metadata = {
   title: 'Projects · Work Planner',
@@ -40,46 +38,16 @@ export default async function ProjectsPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Projects</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Track working days per client contract. Each project defines which weekdays it's active
+          Track working days per client contract. Each project defines which weekdays it&apos;s active
           and an optional date range.
         </p>
       </div>
 
-      {/* Project calendar links (client component for current date) */}
-      <ProjectCalendarLinks projects={allProjects} />
-
-      {/* Projects manager (client component) */}
-      <ProjectsManager
+      {/* Projects list with modal for new project */}
+      <ProjectsList
         projects={allProjects}
         yearWorkingDays={yearWorkingDays}
       />
-
-      {/* API reference */}
-      {allProjects.length > 0 && (
-        <div className="mt-8 p-4 bg-gray-50 border rounded-lg">
-          <h2 className="text-sm font-semibold text-gray-700 mb-2">API endpoints</h2>
-          <div className="space-y-1.5 text-xs text-gray-600 font-mono">
-            <div>GET /api/projects</div>
-            <div>GET /api/projects/:id</div>
-            <div>GET /api/projects/:id/working-days?from=YYYY-MM-DD&amp;to=YYYY-MM-DD</div>
-            <div className="mt-2 text-gray-400">— or via the global endpoint —</div>
-            <div>GET /api/working-days?from=...&amp;to=...&amp;project=:id</div>
-          </div>
-          <div className="mt-3 space-y-1 text-xs text-gray-500">
-            {allProjects.slice(0, 3).map((p) => (
-              <div key={p.id}>
-                <span
-                  className="inline-block w-2 h-2 rounded-full mr-1.5"
-                  style={{ backgroundColor: p.colour }}
-                />
-                <span className="font-medium">{p.name}</span>
-                {' '}
-                <span className="text-gray-400">id: {p.id}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
