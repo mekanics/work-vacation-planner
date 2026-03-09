@@ -4,6 +4,47 @@ import { days } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { isValidISODate } from '@/lib/utils/dates';
 
+const VALID_DAY_TYPES = ['vacation', 'working', 'day_off', 'working_weekend'];
+
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ date: string }> }
+) {
+  const { date } = await params;
+
+  if (!date || !isValidISODate(date)) {
+    return NextResponse.json({ error: 'Invalid date format (YYYY-MM-DD)' }, { status: 400 });
+  }
+
+  let body: Record<string, unknown>;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  }
+
+  const { dayType, note } = body as { dayType?: string; note?: string | null };
+
+  if (!dayType || !VALID_DAY_TYPES.includes(dayType)) {
+    return NextResponse.json(
+      { error: `Invalid dayType. Must be one of: ${VALID_DAY_TYPES.join(', ')}` },
+      { status: 400 }
+    );
+  }
+
+  const now = new Date().toISOString();
+
+  await db
+    .insert(days)
+    .values({ date, dayType, note: note ?? null, createdAt: now, updatedAt: now })
+    .onConflictDoUpdate({
+      target: days.date,
+      set: { dayType, note: note ?? null, updatedAt: now },
+    });
+
+  return NextResponse.json({ success: true });
+}
+
 export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ date: string }> }

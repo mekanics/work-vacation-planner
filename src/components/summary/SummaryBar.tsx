@@ -3,8 +3,6 @@ interface SummaryBarProps {
   vacation: number;
   holidays: number;
   weekdays: number;
-  vacationBudget?: number;
-  vacationUsedTotal?: number;
 }
 
 export function SummaryBar({
@@ -12,8 +10,6 @@ export function SummaryBar({
   vacation,
   holidays,
   weekdays,
-  vacationBudget,
-  vacationUsedTotal,
 }: SummaryBarProps) {
   return (
     <div className="flex flex-wrap gap-3 text-sm">
@@ -41,16 +37,6 @@ export function SummaryBar({
         color="text-gray-500"
         bg="bg-gray-50 border border-gray-200"
       />
-      {vacationBudget !== undefined && vacationUsedTotal !== undefined && (
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-amber-50 border border-amber-200">
-          <span className="text-amber-700 font-medium">
-            {vacationUsedTotal} / {vacationBudget} days used
-          </span>
-          <span className="text-amber-500 text-xs">
-            ({Math.max(0, vacationBudget - vacationUsedTotal)} remaining)
-          </span>
-        </div>
-      )}
     </div>
   );
 }

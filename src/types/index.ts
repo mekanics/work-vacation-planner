@@ -1,4 +1,4 @@
-export type DayType = 'working' | 'vacation' | 'day_off';
+export type DayType = 'working' | 'vacation' | 'day_off' | 'working_weekend';
 
 export interface DayRecord {
   date: string;
@@ -16,6 +16,13 @@ export interface HolidayRecord {
   global: number;
 }
 
+export interface ProjectStripe {
+  projectId: string;
+  colour: string;
+  /** true = project day (solid stripe); false = not a project day (dashed hint) */
+  included: boolean;
+}
+
 export interface CalendarDay {
   date: string;
   dayType: DayType;
@@ -23,8 +30,10 @@ export interface CalendarDay {
   isHoliday: boolean;
   holidayName?: string;
   isCurrentMonth: boolean;
-  /** Hex colours of projects active on this day (empty if none) */
+  /** Hex colours of projects active on this day (empty if none) — kept for back-compat */
   projectColours?: string[];
+  /** Rich stripe info: one entry per project, carrying id + colour + inclusion state */
+  projectStripes?: ProjectStripe[];
 }
 
 export interface MonthSummary {

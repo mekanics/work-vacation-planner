@@ -2,8 +2,8 @@ import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameMonth, subDays, addDays } from 'date-fns';
 import { db } from '@/lib/db';
-import { days, settings } from '@/lib/db/schema';
-import { and, gte, lte, eq } from 'drizzle-orm';
+import { days } from '@/lib/db/schema';
+import { and, gte, lte } from 'drizzle-orm';
 import { getHolidaysForYear } from '@/lib/services/holidays';
 import { calculateWorkingDays } from '@/lib/services/working-days';
 import { getProjects, calculateProjectWorkingDays } from '@/lib/services/projects';
@@ -54,12 +54,6 @@ export default async function YearPage({ params }: PageProps) {
 
   // Year-level summary
   const yearSummary = await calculateWorkingDays(yearFrom, yearTo);
-
-  // Vacation budget
-  const budgetRow = await db.select().from(settings)
-    .where(eq(settings.key, `vacation_budget_${year}`))
-    .then(rows => rows[0]);
-  const vacationBudget = budgetRow ? parseInt(budgetRow.value, 10) : null;
 
   // Fetch projects and their year-level working day counts
   const allProjects = await getProjects();
@@ -127,14 +121,6 @@ export default async function YearPage({ params }: PageProps) {
         <StatCard label="Public holidays" value={yearSummary.public_holidays} color="text-blue-700" />
         <StatCard label="Days off" value={yearSummary.day_off_days} color="text-amber-700" />
       </div>
-
-      {vacationBudget !== null && (
-        <div className="mb-6 p-3 bg-gray-50 rounded text-sm text-gray-600 border border-gray-100">
-          Vacation budget: <span className="font-semibold text-green-700">{yearSummary.vacation_days}</span> used
-          {' '}/ <span className="font-semibold">{vacationBudget}</span> planned
-          {' '}(<span className={yearSummary.vacation_days > vacationBudget ? 'text-red-600 font-semibold' : 'text-gray-500'}>{vacationBudget - yearSummary.vacation_days} remaining</span>)
-        </div>
-      )}
 
       {/* Projects summary */}
       {projectYearSummaries.length > 0 && (

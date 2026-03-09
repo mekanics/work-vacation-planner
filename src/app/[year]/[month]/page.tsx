@@ -15,13 +15,11 @@ import { days } from '@/lib/db/schema';
 import { and, gte, lte } from 'drizzle-orm';
 import { getHolidaysForYear } from '@/lib/services/holidays';
 import { calculateWorkingDays } from '@/lib/services/working-days';
-import { getProjects } from '@/lib/services/projects';
+import { getProjects, getOverridesForProjects } from '@/lib/services/projects';
 import { MonthGrid } from '@/components/calendar/MonthGrid';
 import { MonthNav } from '@/components/calendar/MonthNav';
 import { SummaryBar } from '@/components/summary/SummaryBar';
-import { settings } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
-import type { CalendarDay } from '@/types';
+import type { CalendarDay, ProjectStripe } from '@/types';
 
 interface PageProps {
   params: Promise<{
@@ -93,40 +91,64 @@ export default async function MonthPage({ params }: PageProps) {
     };
   });
 
-  // Load projects for colour enrichment
+  // Load projects + their overrides for colour enrichment
   const allProjects = await getProjects();
+  const projectIds = allProjects.map((p) => p.id);
+  const overridesMap = await getOverridesForProjects(projectIds);
 
-  // Enrich each calendar day with active project colours
+  // Build per-project override sets for fast lookup
+  const projectOverrideSets = new Map<string, { includes: Set<string>; excludes: Set<string> }>();
+  for (const project of allProjects) {
+    const overrides = overridesMap.get(project.id) ?? [];
+    projectOverrideSets.set(project.id, {
+      includes: new Set(overrides.filter((o) => o.type === 'include').map((o) => o.date)),
+      excludes: new Set(overrides.filter((o) => o.type === 'exclude').map((o) => o.date)),
+    });
+  }
+
+  // Enrich each calendar day with active project stripes
   const enrichedCalendarDays: CalendarDay[] = calendarDays.map((day) => {
-    if (day.isWeekend || !day.isCurrentMonth) return day;
+    if (!day.isCurrentMonth) return day;
 
     const dow = getDay(new Date(day.date + 'T12:00:00')); // 0=Sun, 1=Mon, ..., 6=Sat
-    const projectColours: string[] = [];
+    const projectStripes: ProjectStripe[] = [];
 
     for (const project of allProjects) {
       // Check date range
       if (project.startDate && day.date < project.startDate) continue;
       if (project.endDate && day.date > project.endDate) continue;
-      // Check weekday mask
-      if (!project.weekdays.includes(dow)) continue;
-      projectColours.push(project.colour);
+
+      const sets = projectOverrideSets.get(project.id)!;
+      const matchesMask = project.weekdays.includes(dow) && !sets.excludes.has(day.date);
+      const explicitlyIncluded = sets.includes.has(day.date);
+
+      // Show stripe if the project has any relevance to this day (included or excluded by override)
+      const included = matchesMask || explicitlyIncluded;
+      const hasExcludeOverride = sets.excludes.has(day.date);
+
+      // Always show stripe for days in range:
+      // - solid (included=true) when it's a project day
+      // - dashed hint (included=false) when excluded by override or mask miss on a weekday
+      // For weekends: only show hint if there's an explicit exclude (to avoid clutter)
+      if (included) {
+        projectStripes.push({ projectId: project.id, colour: project.colour, included: true });
+      } else if (!day.isWeekend) {
+        // Show a faint hint: mask miss or excluded override
+        projectStripes.push({ projectId: project.id, colour: project.colour, included: false });
+      } else if (hasExcludeOverride) {
+        // Weekend with explicit exclude — shouldn't normally happen, but show hint
+        projectStripes.push({ projectId: project.id, colour: project.colour, included: false });
+      }
     }
 
-    return { ...day, projectColours };
+    // Back-compat: also populate projectColours for components that still use it
+    const projectColours = projectStripes.filter((s) => s.included).map((s) => s.colour);
+
+    return { ...day, projectStripes, projectColours };
   });
 
   // Get month summary for stats
   const summary = await calculateWorkingDays(from, to);
-
-  // Get vacation budget
-  const budgetKey = `vacation_budget_${year}`;
-  const budgetRow = await db.select().from(settings).where(eq(settings.key, budgetKey)).then(rows => rows[0]);
-  const vacationBudget = budgetRow ? parseInt(budgetRow.value, 10) : 20;
-
-  // Get total vacation used this year for budget display
-  const yearFrom = `${year}-01-01`;
-  const yearTo = `${year}-12-31`;
-  const yearSummary = await calculateWorkingDays(yearFrom, yearTo);
 
   const monthLabel = format(monthStart, 'MMMM yyyy');
 
@@ -157,8 +179,6 @@ export default async function MonthPage({ params }: PageProps) {
           vacation={summary.vacation_days}
           holidays={summary.public_holidays}
           weekdays={summary.weekdays}
-          vacationBudget={vacationBudget}
-          vacationUsedTotal={yearSummary.vacation_days}
         />
       </div>
 

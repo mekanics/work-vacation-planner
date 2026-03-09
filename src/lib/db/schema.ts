@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, primaryKey } from 'drizzle-orm/sqlite-core';
 
 export const days = sqliteTable('days', {
   date: text('date').primaryKey(),
@@ -31,3 +31,11 @@ export const projects = sqliteTable('projects', {
   createdAt: text('created_at').notNull(),
   updatedAt: text('updated_at').notNull(),
 });
+
+export const projectDayOverrides = sqliteTable('project_day_overrides', {
+  projectId: text('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
+  date: text('date').notNull(), // YYYY-MM-DD
+  type: text('type').notNull(), // 'include' | 'exclude'
+}, (t) => ({
+  pk: primaryKey({ columns: [t.projectId, t.date] }),
+}));

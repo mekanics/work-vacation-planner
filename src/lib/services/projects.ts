@@ -1,11 +1,17 @@
 import { db } from '@/lib/db';
-import { days, projects } from '@/lib/db/schema';
-import { and, eq, gte, lte, or } from 'drizzle-orm';
+import { days, projects, projectDayOverrides } from '@/lib/db/schema';
+import { and, eq, gte, lte } from 'drizzle-orm';
 import { eachDayInRange, toISODate } from '@/lib/utils/dates';
 import { getHolidayDateSet } from './holidays';
-import { getDay, getYear, parseISO } from 'date-fns';
+import { getDay, getYear } from 'date-fns';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+export interface ProjectDayOverride {
+  projectId: string;
+  date: string;
+  type: 'include' | 'exclude';
+}
 
 export interface ProjectRecord {
   id: string;
@@ -66,6 +72,63 @@ export async function getProject(id: string): Promise<ProjectRecord | null> {
   return rows.length > 0 ? rowToRecord(rows[0]) : null;
 }
 
+/** Fetch all overrides for a project. */
+export async function getProjectOverrides(projectId: string): Promise<ProjectDayOverride[]> {
+  const rows = await db
+    .select()
+    .from(projectDayOverrides)
+    .where(eq(projectDayOverrides.projectId, projectId));
+  return rows.map((r) => ({
+    projectId: r.projectId,
+    date: r.date,
+    type: r.type as 'include' | 'exclude',
+  }));
+}
+
+/** Fetch all overrides for multiple projects at once (keyed by projectId). */
+export async function getOverridesForProjects(
+  projectIds: string[]
+): Promise<Map<string, ProjectDayOverride[]>> {
+  if (projectIds.length === 0) return new Map();
+  const rows = await db.select().from(projectDayOverrides);
+  const result = new Map<string, ProjectDayOverride[]>();
+  for (const row of rows) {
+    if (!projectIds.includes(row.projectId)) continue;
+    const overrides = result.get(row.projectId) ?? [];
+    overrides.push({ projectId: row.projectId, date: row.date, type: row.type as 'include' | 'exclude' });
+    result.set(row.projectId, overrides);
+  }
+  return result;
+}
+
+/** Upsert (insert or replace) a day override. */
+export async function upsertProjectOverride(
+  projectId: string,
+  date: string,
+  type: 'include' | 'exclude'
+): Promise<void> {
+  // SQLite upsert via insert … on conflict replace
+  await db
+    .insert(projectDayOverrides)
+    .values({ projectId, date, type })
+    .onConflictDoUpdate({
+      target: [projectDayOverrides.projectId, projectDayOverrides.date],
+      set: { type },
+    });
+}
+
+/** Delete a day override (reverts the day to mask default). */
+export async function deleteProjectOverride(projectId: string, date: string): Promise<void> {
+  await db
+    .delete(projectDayOverrides)
+    .where(
+      and(
+        eq(projectDayOverrides.projectId, projectId),
+        eq(projectDayOverrides.date, date)
+      )
+    );
+}
+
 /**
  * Calculate working days for a project within a date range.
  *
@@ -121,6 +184,11 @@ export async function calculateProjectWorkingDays(
     );
   const vacationSet = new Set(dayRows.map((r) => r.date));
 
+  // Fetch per-project day overrides
+  const overrides = await getProjectOverrides(projectId);
+  const includeOverrides = new Set(overrides.filter((o) => o.type === 'include').map((o) => o.date));
+  const excludeOverrides = new Set(overrides.filter((o) => o.type === 'exclude').map((o) => o.date));
+
   let totalProjectDays = 0;
   let holidays = 0;
   let vacationDays = 0;
@@ -129,7 +197,12 @@ export async function calculateProjectWorkingDays(
     const iso = toISODate(date);
     const dow = getDay(date); // 0=Sun, 1=Mon, ..., 6=Sat
 
-    if (!weekdaySet.has(dow)) continue;
+    // A date counts if: (matches weekday mask AND not excluded) OR (explicitly included)
+    // In both cases, the date must be within the effective range (already guaranteed by allDates).
+    const matchesMask = weekdaySet.has(dow) && !excludeOverrides.has(iso);
+    const explicitlyIncluded = includeOverrides.has(iso);
+
+    if (!matchesMask && !explicitlyIncluded) continue;
 
     totalProjectDays++;
 
