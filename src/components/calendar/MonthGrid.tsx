@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { getISOWeek } from 'date-fns';
 import { DayCell } from './DayCell';
+import { DayContextMenu } from './DayContextMenu';
 import type { CalendarDay, DayType } from '@/types';
 
 const WEEKDAY_HEADERS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -214,14 +215,19 @@ export function MonthGrid({ days, year, month }: MonthGridProps) {
             {/* Day cells */}
             <div className="flex-1 grid grid-cols-7 gap-1">
               {week.map((day) => (
-                <DayCell
+                <DayContextMenu
                   key={day.date}
                   day={day}
-                  isInRange={highlightedDates.has(day.date)}
-                  onCellMouseDown={(e) => handleCellMouseDown(day.date, e.shiftKey)}
-                  onCellMouseEnter={() => handleCellMouseEnter(day.date)}
-                  onCellMouseUp={() => handleCellMouseUp(day.date)}
-                />
+                  onOverrideChange={() => router.refresh()}
+                >
+                  <DayCell
+                    day={day}
+                    isInRange={highlightedDates.has(day.date)}
+                    onCellMouseDown={(e) => handleCellMouseDown(day.date, e.shiftKey)}
+                    onCellMouseEnter={() => handleCellMouseEnter(day.date)}
+                    onCellMouseUp={() => handleCellMouseUp(day.date)}
+                  />
+                </DayContextMenu>
               ))}
             </div>
           </div>

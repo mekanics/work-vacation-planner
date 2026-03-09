@@ -41,7 +41,7 @@ export function DayCell({
   // Prefer rich stripe data; fall back to legacy projectColours for back-compat
   const projectStripes: ProjectStripe[] =
     day.projectStripes ??
-    (day.projectColours ?? []).map((colour) => ({ projectId: '', colour, included: true }));
+    (day.projectColours ?? []).map((colour) => ({ projectId: '', projectName: '', colour, included: true }));
 
   // Render up to 3 project colour stripes on the left edge (stacked vertically)
   const visibleStripes = projectStripes.slice(0, 3);
@@ -60,32 +60,6 @@ export function DayCell({
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ dayType: 'working_weekend' }),
-      });
-    }
-
-    router.refresh();
-  }
-
-  async function handleStripeClick(e: React.MouseEvent, stripe: ProjectStripe) {
-    // Prevent the cell's drag handlers from firing
-    e.stopPropagation();
-    e.preventDefault();
-
-    if (!stripe.projectId) return; // legacy mode with no id — skip
-
-    if (stripe.included) {
-      // Currently a project day → add exclude override
-      await fetch(`/api/projects/${stripe.projectId}/overrides`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date: day.date, type: 'exclude' }),
-      });
-    } else {
-      // Not a project day → add include override
-      await fetch(`/api/projects/${stripe.projectId}/overrides`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date: day.date, type: 'include' }),
       });
     }
 
@@ -132,33 +106,17 @@ export function DayCell({
         isInRange && 'ring-2 ring-indigo-400 ring-inset bg-indigo-50 border-indigo-300'
       )}
     >
-      {/* Project colour stripes — 4px left border, stacked vertically, clickable */}
+      {/* Project colour stripes — 4px left border, stacked vertically, visual-only */}
       {visibleStripes.length > 0 && day.isCurrentMonth && (
-        <div className="absolute left-0 top-0 bottom-0 w-1 flex flex-col z-10">
+        <div className="absolute left-0 top-0 bottom-0 w-1 flex flex-col z-10 pointer-events-none">
           {visibleStripes.map((stripe, i) => (
-            <button
+            <span
               key={i}
-              type="button"
-              title={
-                stripe.included
-                  ? `Click to exclude this day from project`
-                  : `Click to include this day in project`
-              }
-              aria-label={
-                stripe.included
-                  ? `Exclude ${day.date} from project`
-                  : `Include ${day.date} in project`
-              }
-              onClick={(e) => void handleStripeClick(e, stripe)}
-              onMouseDown={(e) => e.stopPropagation()}
               style={{
                 backgroundColor: stripe.included ? stripe.colour : 'transparent',
                 borderLeft: stripe.included ? 'none' : `4px dashed ${stripe.colour}`,
                 height: stripeHeight,
                 width: '4px',
-                padding: 0,
-                border: 'none',
-                cursor: stripe.projectId ? 'pointer' : 'default',
                 opacity: stripe.included ? 1 : 0.45,
                 display: 'block',
               }}

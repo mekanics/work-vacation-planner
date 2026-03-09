@@ -18,9 +18,12 @@ export interface HolidayRecord {
 
 export interface ProjectStripe {
   projectId: string;
+  projectName: string;
   colour: string;
   /** true = project day (solid stripe); false = not a project day (dashed hint) */
   included: boolean;
+  /** If there is an active override for this day, this records its type */
+  overrideType?: 'include' | 'exclude';
 }
 
 export interface CalendarDay {

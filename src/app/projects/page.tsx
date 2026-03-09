@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { format } from 'date-fns';
 import { getProjects, calculateProjectWorkingDays } from '@/lib/services/projects';
 import { ProjectsManager } from '@/components/projects/ProjectsManager';
+import { ProjectCalendarLinks } from '@/components/projects/ProjectCalendarLinks';
 
 export const metadata = {
   title: 'Projects · Work Planner',
@@ -43,6 +44,9 @@ export default async function ProjectsPage() {
           and an optional date range.
         </p>
       </div>
+
+      {/* Project calendar links (client component for current date) */}
+      <ProjectCalendarLinks projects={allProjects} />
 
       {/* Projects manager (client component) */}
       <ProjectsManager

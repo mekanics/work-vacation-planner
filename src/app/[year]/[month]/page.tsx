@@ -78,7 +78,9 @@ export default async function MonthPage({ params }: PageProps) {
     const isHoliday = holidayMap.has(iso);
     const storedType = dayMap.get(iso);
     const dayType =
-      storedType === 'vacation' ? 'vacation' : 'working';
+      storedType === 'vacation' ? 'vacation'
+      : storedType === 'working_weekend' ? 'working_weekend'
+      : 'working';
 
     return {
       date: iso,
@@ -118,25 +120,31 @@ export default async function MonthPage({ params }: PageProps) {
       if (project.endDate && day.date > project.endDate) continue;
 
       const sets = projectOverrideSets.get(project.id)!;
-      const matchesMask = project.weekdays.includes(dow) && !sets.excludes.has(day.date);
-      const explicitlyIncluded = sets.includes.has(day.date);
+      const hasExcludeOverride = sets.excludes.has(day.date);
+      const hasIncludeOverride = sets.includes.has(day.date);
+      const matchesMask = project.weekdays.includes(dow) && !hasExcludeOverride;
+      const explicitlyIncluded = hasIncludeOverride;
 
       // Show stripe if the project has any relevance to this day (included or excluded by override)
       const included = matchesMask || explicitlyIncluded;
-      const hasExcludeOverride = sets.excludes.has(day.date);
+      const overrideType: 'include' | 'exclude' | undefined = hasIncludeOverride
+        ? 'include'
+        : hasExcludeOverride
+        ? 'exclude'
+        : undefined;
 
       // Always show stripe for days in range:
       // - solid (included=true) when it's a project day
       // - dashed hint (included=false) when excluded by override or mask miss on a weekday
       // For weekends: only show hint if there's an explicit exclude (to avoid clutter)
       if (included) {
-        projectStripes.push({ projectId: project.id, colour: project.colour, included: true });
+        projectStripes.push({ projectId: project.id, projectName: project.name, colour: project.colour, included: true, overrideType });
       } else if (!day.isWeekend) {
         // Show a faint hint: mask miss or excluded override
-        projectStripes.push({ projectId: project.id, colour: project.colour, included: false });
+        projectStripes.push({ projectId: project.id, projectName: project.name, colour: project.colour, included: false, overrideType });
       } else if (hasExcludeOverride) {
         // Weekend with explicit exclude — shouldn't normally happen, but show hint
-        projectStripes.push({ projectId: project.id, colour: project.colour, included: false });
+        projectStripes.push({ projectId: project.id, projectName: project.name, colour: project.colour, included: false, overrideType });
       }
     }
 
