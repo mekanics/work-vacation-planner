@@ -43,8 +43,8 @@ export function DayCell({
     day.projectStripes ??
     (day.projectColours ?? []).map((colour) => ({ projectId: '', projectName: '', colour, included: true }));
 
-  // Render up to 3 project colour stripes on the left edge (stacked vertically)
-  const visibleStripes = projectStripes.slice(0, 3);
+  // Render up to 3 project colour stripes on the left edge (active days only — excluded days show nothing)
+  const visibleStripes = projectStripes.filter((s) => s.included).slice(0, 3);
   const stripeHeight = visibleStripes.length > 0 ? `${100 / visibleStripes.length}%` : '0%';
 
   async function handleWeekendClick(e: React.MouseEvent) {
@@ -113,11 +113,9 @@ export function DayCell({
             <span
               key={i}
               style={{
-                backgroundColor: stripe.included ? stripe.colour : 'transparent',
-                borderLeft: stripe.included ? 'none' : `4px dashed ${stripe.colour}`,
+                backgroundColor: stripe.colour,
                 height: stripeHeight,
                 width: '4px',
-                opacity: stripe.included ? 1 : 0.45,
                 display: 'block',
               }}
             />
