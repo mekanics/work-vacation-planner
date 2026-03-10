@@ -34,9 +34,9 @@ export async function getCanton(): Promise<string> {
       .from(settings)
       .where(eq(settings.key, 'canton'))
       .get();
-    return row?.value ?? process.env.CANTON ?? 'ZH';
+    return row?.value ?? 'CH';
   } catch {
-    return process.env.CANTON ?? 'ZH';
+    return 'CH';
   }
 }
 
