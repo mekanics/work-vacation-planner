@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import Link from 'next/link';
 import { getProjects, calculateProjectWorkingDays } from '@/lib/services/projects';
 import { ProjectsList } from '@/components/projects/ProjectsList';
