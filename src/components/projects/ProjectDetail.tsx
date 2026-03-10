@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { format, addMonths, subMonths } from 'date-fns';
 import type { ProjectRecord, ProjectDayOverride, ProjectWorkingDaySummary } from '@/lib/services/projects';
 import type { ProjectCalendarDay } from './ProjectMonthGrid';

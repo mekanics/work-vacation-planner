@@ -21,6 +21,7 @@ export function DayContextMenu({ day, children, onOverrideChange }: DayContextMe
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Track client mount so createPortal works with SSR
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setMounted(true); }, []);
 
   const close = useCallback(() => setPosition(null), []);

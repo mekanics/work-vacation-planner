@@ -1,4 +1,4 @@
-import { notFound, redirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameMonth, subDays, addDays } from 'date-fns';
 import { db } from '@/lib/db';
