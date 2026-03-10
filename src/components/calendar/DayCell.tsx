@@ -30,10 +30,12 @@ export function DayCell({
 }: DayCellProps) {
   const router = useRouter();
   const isWorkingWeekend = day.dayType === 'working_weekend';
-  // Weekdays only participate in drag-select; weekends have their own click toggle
-  const isInteractive = !day.isWeekend && !day.isHoliday && day.isCurrentMonth;
-  const isWeekendClickable = day.isWeekend && !day.isHoliday && day.isCurrentMonth;
   const isVacation = day.dayType === 'vacation';
+  // Weekdays (non-holiday) participate in drag-select
+  const isInteractive = !day.isWeekend && !day.isHoliday && day.isCurrentMonth;
+  // Holidays are clickable (single click only, not drag) to toggle vacation override
+  const isHolidayClickable = day.isHoliday && day.isCurrentMonth;
+  const isWeekendClickable = day.isWeekend && !day.isHoliday && day.isCurrentMonth;
   const isToday = day.date === TODAY;
 
   const dayNumber = parseInt(day.date.split('-')[2], 10);
@@ -66,23 +68,44 @@ export function DayCell({
     router.refresh();
   }
 
+  async function handleHolidayClick(e: React.MouseEvent) {
+    e.stopPropagation();
+    e.preventDefault();
+    if (isVacation) {
+      // Remove vacation override — revert to pure holiday
+      await fetch(`/api/days/${day.date}`, { method: 'DELETE' });
+    } else {
+      // Mark as vacation (overrides holiday for display + counting)
+      await fetch(`/api/days/${day.date}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dayType: 'vacation' }),
+      });
+    }
+    router.refresh();
+  }
+
   return (
     <div
-      role={isInteractive || isWeekendClickable ? 'button' : 'gridcell'}
-      tabIndex={isInteractive || isWeekendClickable ? 0 : -1}
+      role={isInteractive || isWeekendClickable || isHolidayClickable ? 'button' : 'gridcell'}
+      tabIndex={isInteractive || isWeekendClickable || isHolidayClickable ? 0 : -1}
       aria-label={
         isInteractive
           ? `${day.date}: ${day.dayType}. Click to toggle.`
           : isWeekendClickable
           ? `${day.date}: ${isWorkingWeekend ? 'Working weekend. Click to remove.' : 'Weekend. Click to mark as working.'}`
-          : day.isHoliday
-          ? `${day.date}: ${day.holidayName ?? 'Public holiday'}`
+          : isHolidayClickable
+          ? `${day.date}: ${day.holidayName ?? 'Public holiday'}. ${isVacation ? 'Marked as vacation. Click to revert.' : 'Click to mark as vacation.'}`
           : day.date
       }
       onMouseDown={isInteractive ? onCellMouseDown : undefined}
       onMouseEnter={onCellMouseEnter}
       onMouseUp={isInteractive ? onCellMouseUp : undefined}
-      onClick={isWeekendClickable ? (e) => void handleWeekendClick(e) : undefined}
+      onClick={
+        isWeekendClickable ? (e) => void handleWeekendClick(e)
+        : isHolidayClickable ? (e) => void handleHolidayClick(e)
+        : undefined
+      }
       className={cn(
         'relative flex flex-col p-1 min-h-[60px] sm:min-h-[80px] rounded-sm border text-sm transition-colors overflow-hidden',
         // Not in current month
@@ -93,9 +116,12 @@ export function DayCell({
         // Normal weekend
         day.isCurrentMonth && day.isWeekend && !isWorkingWeekend &&
           'bg-slate-200 text-slate-400 border-slate-300 cursor-pointer hover:bg-slate-300',
-        // Public holiday
-        day.isCurrentMonth && day.isHoliday &&
-          'bg-blue-100 border-blue-400 cursor-default',
+        // Public holiday with vacation override — show as vacation
+        day.isCurrentMonth && day.isHoliday && isVacation &&
+          'bg-green-100 border-green-400 cursor-pointer hover:bg-green-200',
+        // Pure public holiday (no vacation override)
+        day.isCurrentMonth && day.isHoliday && !isVacation &&
+          'bg-blue-100 border-blue-400 cursor-pointer hover:bg-blue-200',
         // Vacation
         day.isCurrentMonth && !day.isWeekend && !day.isHoliday && isVacation &&
           'bg-green-100 border-green-400 cursor-pointer hover:bg-green-200',
@@ -128,10 +154,21 @@ export function DayCell({
         <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-indigo-500" />
       )}
 
-      {day.isHoliday && day.holidayName && (
+      {day.isHoliday && !isVacation && day.holidayName && (
         <span className="text-xs text-blue-600 leading-tight mt-0.5 hidden sm:block truncate">
           {day.holidayName}
         </span>
+      )}
+      {day.isHoliday && isVacation && (
+        <>
+          <span className="absolute bottom-1 left-1 w-2 h-2 rounded-full bg-green-500 sm:hidden" />
+          <span className="text-xs text-green-600 mt-0.5 hidden sm:block">🌴 Vacation</span>
+          {day.holidayName && (
+            <span className="text-xs text-green-400 leading-tight hidden sm:block truncate opacity-70">
+              {day.holidayName}
+            </span>
+          )}
+        </>
       )}
 
       {/* Vacation: dot on mobile, label on sm+ */}
@@ -155,8 +192,8 @@ export function DayCell({
         className={cn(
           'font-medium text-xs sm:text-sm mt-auto',
           isToday && day.isCurrentMonth && 'text-indigo-700 font-bold',
-          day.isHoliday && 'text-blue-700',
-          isVacation && !day.isHoliday && 'text-green-700',
+          day.isHoliday && !isVacation && 'text-blue-700',
+          isVacation && 'text-green-700',
           isWorkingWeekend && day.isWeekend && 'text-indigo-700'
         )}
       >

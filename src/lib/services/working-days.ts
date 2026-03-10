@@ -101,11 +101,12 @@ export async function calculateWorkingDays(
     const isHoliday = holidayDateSet.has(iso);
     const isVacation = vacationSet.has(iso);
 
-    if (isHoliday) {
-      holidaysOnWeekdays++;
-    } else if (isVacation) {
-      // Count vacation only if not already counted as holiday (de-dup)
+    // Vacation wins over holiday when explicitly set by the user
+    // (e.g. employer doesn't observe this holiday — user spent a vacation day)
+    if (isVacation) {
       vacationOnWeekdays++;
+    } else if (isHoliday) {
+      holidaysOnWeekdays++;
     }
   }
 
