@@ -116,11 +116,8 @@ export function DayCell({
         // Normal weekend
         day.isCurrentMonth && day.isWeekend && !isWorkingWeekend &&
           'bg-slate-200 text-slate-400 border-slate-300 cursor-pointer hover:bg-slate-300',
-        // Public holiday with vacation override — show as vacation
-        day.isCurrentMonth && day.isHoliday && isVacation &&
-          'bg-green-100 border-green-400 cursor-pointer hover:bg-green-200',
-        // Pure public holiday (no vacation override)
-        day.isCurrentMonth && day.isHoliday && !isVacation &&
+        // Public holiday (with or without vacation override) — always holiday colour
+        day.isCurrentMonth && day.isHoliday &&
           'bg-blue-100 border-blue-400 cursor-pointer hover:bg-blue-200',
         // Vacation
         day.isCurrentMonth && !day.isWeekend && !day.isHoliday && isVacation &&
@@ -154,7 +151,7 @@ export function DayCell({
         <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-indigo-500" />
       )}
 
-      {day.isHoliday && !isVacation && day.holidayName && (
+      {day.isHoliday && day.holidayName && (
         <span className="text-xs text-blue-600 leading-tight mt-0.5 hidden sm:block truncate">
           {day.holidayName}
         </span>
@@ -162,12 +159,7 @@ export function DayCell({
       {day.isHoliday && isVacation && (
         <>
           <span className="absolute bottom-1 left-1 w-2 h-2 rounded-full bg-green-500 sm:hidden" />
-          <span className="text-xs text-green-600 mt-0.5 hidden sm:block">🌴 Vacation</span>
-          {day.holidayName && (
-            <span className="text-xs text-green-400 leading-tight hidden sm:block truncate opacity-70">
-              {day.holidayName}
-            </span>
-          )}
+          <span className="text-xs text-green-600 hidden sm:block">🌴 Vacation</span>
         </>
       )}
 
@@ -192,8 +184,8 @@ export function DayCell({
         className={cn(
           'font-medium text-xs sm:text-sm mt-auto',
           isToday && day.isCurrentMonth && 'text-indigo-700 font-bold',
-          day.isHoliday && !isVacation && 'text-blue-700',
-          isVacation && 'text-green-700',
+          day.isHoliday && 'text-blue-700',
+          isVacation && !day.isHoliday && 'text-green-700',
           isWorkingWeekend && day.isWeekend && 'text-indigo-700'
         )}
       >
