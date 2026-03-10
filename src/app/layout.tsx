@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: 'Work Planner',
-  description: 'Work & Vacation Planner — Canton Zurich',
+  description: 'Work & Vacation Planner',
 };
 
 export default function RootLayout({
@@ -32,7 +32,7 @@ export default function RootLayout({
             <div className="flex items-center gap-3">
               <span className="font-semibold text-gray-900 tracking-tight">Work Planner</span>
               <span className="text-xs text-gray-300 hidden sm:block">·</span>
-              <span className="text-xs text-gray-400 hidden sm:block">Canton Zurich</span>
+
             </div>
             <nav className="flex items-center gap-3">
               <Link
