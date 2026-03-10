@@ -29,6 +29,10 @@ COPY --from=builder /app/drizzle ./drizzle
 COPY --from=builder /app/scripts ./scripts
 COPY entrypoint.sh ./entrypoint.sh
 
+# drizzle-orm is pure JS so Next.js bundles it inline — it won't be in
+# standalone/node_modules. Copy it explicitly so migrate.ts can import it.
+COPY --from=deps /app/node_modules/drizzle-orm ./node_modules/drizzle-orm
+
 RUN mkdir -p /data && chown -R appuser:appgroup /data /app
 RUN chmod +x entrypoint.sh
 
