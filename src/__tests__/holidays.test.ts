@@ -93,8 +93,9 @@ describe('getCantonSetting', () => {
 });
 
 describe('ensureHolidaysCached', () => {
-  it('returns early when sentinel is "unavailable"', async () => {
-    const sentinelChain = makeSelectChain({ key: 'holidays_fetched_2025_ZH', value: 'unavailable' });
+  it('returns early when sentinel is a recent ISO timestamp (within 7-day TTL)', async () => {
+    const recentTs = new Date(Date.now() - 1000).toISOString(); // 1 second ago
+    const sentinelChain = makeSelectChain({ key: 'holidays_fetched_2025_ZH', value: recentTs });
     mockDb.select.mockReturnValue(sentinelChain);
 
     await ensureHolidaysCached(2025, 'ZH');
@@ -103,14 +104,45 @@ describe('ensureHolidaysCached', () => {
     expect(mockDb.insert).not.toHaveBeenCalled();
   });
 
-  it('returns early when sentinel is "ok"', async () => {
+  it('when sentinel is "ok", DB check still runs (not short-circuited)', async () => {
     const sentinelChain = makeSelectChain({ key: 'holidays_fetched_2025_ZH', value: 'ok' });
-    mockDb.select.mockReturnValue(sentinelChain);
+    const existingChain = makeSelectChainAll([
+      { date: '2025-01-01', name: 'Neujahr', canton: 'ZH', year: 2025, global: 1 },
+    ]);
+
+    mockDb.select
+      .mockReturnValueOnce(sentinelChain)  // isFetchBlocked → 'ok' → false
+      .mockReturnValueOnce(existingChain); // existing check → has rows → return early
 
     await ensureHolidaysCached(2025, 'ZH');
 
     expect(mockFetch).not.toHaveBeenCalled();
-    expect(mockDb.insert).not.toHaveBeenCalled();
+    expect(mockDb.insert).not.toHaveBeenCalled(); // No sentinel insert (just returned)
+    expect(mockDb.select).toHaveBeenCalledTimes(2);
+  });
+
+  it('fetches again when "unavailable" sentinel is older than 7 days (TTL expired)', async () => {
+    // Timestamp 8 days ago = beyond 7-day TTL → should retry
+    const expiredTs = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString();
+    const sentinelChain = makeSelectChain({ key: 'holidays_fetched_2025_ZH', value: expiredTs });
+    const cacheChain = makeSelectChainAll([]); // no cached rows
+    const insertChain = makeInsertChain();
+
+    mockDb.select
+      .mockReturnValueOnce(sentinelChain)  // isFetchBlocked → expired → false
+      .mockReturnValueOnce(cacheChain);    // existing check → empty
+    mockDb.insert.mockReturnValue(insertChain);
+
+    mockFetch.mockResolvedValue({ ok: true, json: async () => [] });
+
+    await ensureHolidaysCached(2025, 'ZH');
+
+    // Should have attempted fetch (even though it returns empty)
+    expect(mockFetch).toHaveBeenCalledOnce();
+    // Sets a new unavailable sentinel (fresh timestamp)
+    const values = insertChain.values.mock.calls[0][0];
+    expect(values.key).toBe('holidays_fetched_2025_ZH');
+    expect(values.value).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
 
   it('returns early when DB already has rows for (year, canton)', async () => {
@@ -118,18 +150,15 @@ describe('ensureHolidaysCached', () => {
     const cacheChain = makeSelectChainAll([
       { date: '2025-01-01', name: 'Neujahr', canton: 'ZH', year: 2025, global: 1 },
     ]);
-    const setSentinelInsert = makeInsertChain();
 
     mockDb.select
       .mockReturnValueOnce(sentinelChain)
       .mockReturnValueOnce(cacheChain);
-    mockDb.insert.mockReturnValue(setSentinelInsert);
 
     await ensureHolidaysCached(2025, 'ZH');
 
     expect(mockFetch).not.toHaveBeenCalled();
-    // setSentinel('ok') should have been called
-    expect(mockDb.insert).toHaveBeenCalledTimes(1);
+    expect(mockDb.insert).not.toHaveBeenCalled(); // No sentinel insert (just returned)
   });
 
   it('fetches from API and inserts when no cache and no sentinel', async () => {
@@ -228,10 +257,11 @@ describe('ensureHolidaysCached', () => {
 
     await ensureHolidaysCached(2025, 'GR');
 
-    // No holidays matched → sentinel = 'unavailable', no holiday insert
+    // No holidays matched → sentinel = ISO timestamp, no holiday insert
     expect(mockDb.insert).toHaveBeenCalledTimes(1);
     const sentinelValues = insertChain.values.mock.calls[0][0];
-    expect(sentinelValues).toMatchObject({ key: 'holidays_fetched_2025_GR', value: 'unavailable' });
+    expect(sentinelValues).toMatchObject({ key: 'holidays_fetched_2025_GR' });
+    expect(sentinelValues.value).toMatch(/^\d{4}-\d{2}-\d{2}T/); // ISO timestamp
   });
 
   it('when canton is "CH", includes only nationwide holidays', async () => {
@@ -284,7 +314,8 @@ describe('ensureHolidaysCached', () => {
 
     expect(mockDb.insert).toHaveBeenCalledTimes(1);
     const values = insertChain.values.mock.calls[0][0];
-    expect(values).toMatchObject({ key: 'holidays_fetched_2030_ZH', value: 'unavailable' });
+    expect(values).toMatchObject({ key: 'holidays_fetched_2030_ZH' });
+    expect(values.value).toMatch(/^\d{4}-\d{2}-\d{2}T/); // ISO timestamp
   });
 
   it('sets "unavailable" sentinel when fetch throws', async () => {
@@ -303,7 +334,8 @@ describe('ensureHolidaysCached', () => {
 
     expect(mockDb.insert).toHaveBeenCalledTimes(1);
     const values = insertChain.values.mock.calls[0][0];
-    expect(values).toMatchObject({ key: 'holidays_fetched_2025_ZH', value: 'unavailable' });
+    expect(values).toMatchObject({ key: 'holidays_fetched_2025_ZH' });
+    expect(values.value).toMatch(/^\d{4}-\d{2}-\d{2}T/); // ISO timestamp
   });
 
   it('sets "unavailable" sentinel when API returns non-ok status', async () => {
@@ -321,7 +353,8 @@ describe('ensureHolidaysCached', () => {
     await ensureHolidaysCached(2025, 'ZH');
 
     const values = insertChain.values.mock.calls[0][0];
-    expect(values).toMatchObject({ value: 'unavailable' });
+    expect(values.key).toBe('holidays_fetched_2025_ZH');
+    expect(values.value).toMatch(/^\d{4}-\d{2}-\d{2}T/); // ISO timestamp
   });
 
   it('picks German name from multilingual name array', async () => {
@@ -359,17 +392,17 @@ describe('ensureHolidaysCached', () => {
 describe('getHolidayDateSet', () => {
   it('returns a Set of date strings', async () => {
     // Canton passed explicitly → getCantonSetting is NOT called
-    // Call sequence:
-    //   1. getSentinel (sentinel='ok' → ensureHolidaysCached returns early)
-    //   2. final DB select in getHolidaysForYear
-    const sentinelChain = makeSelectChain({ key: 'holidays_fetched_2025_ZH', value: 'ok' });
+    // Use a recent timestamp as sentinel → isFetchBlocked returns true → skips existing check
+    // Then getHolidaysForYear does its own final DB select
+    const recentTs = new Date(Date.now() - 1000).toISOString();
+    const sentinelChain = makeSelectChain({ key: 'holidays_fetched_2025_ZH', value: recentTs });
     const holidaysChain = makeSelectChainAll([
       { date: '2025-01-01', name: 'Neujahr', canton: 'ZH', year: 2025, global: 1 },
       { date: '2025-01-02', name: 'Berchtoldstag', canton: 'ZH', year: 2025, global: 0 },
     ]);
 
     mockDb.select
-      .mockReturnValueOnce(sentinelChain)   // getSentinel in ensureHolidaysCached
+      .mockReturnValueOnce(sentinelChain)   // isFetchBlocked → recent timestamp → true (blocked)
       .mockReturnValueOnce(holidaysChain);  // final DB select in getHolidaysForYear
 
     const result = await getHolidayDateSet(2025, 'ZH');
