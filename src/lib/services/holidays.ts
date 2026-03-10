@@ -98,10 +98,10 @@ function pickName(names: OpenHolidayName[]): string {
 export async function ensureHolidaysCached(year: number, canton?: string): Promise<void> {
   const activeCanton = canton ?? await getCantonSetting();
 
-  // Check sentinel first — avoid any DB/API call for known states
+  // Check sentinel only for known-unavailable years (future years the API doesn't have yet)
+  // Do NOT short-circuit on 'ok' — always verify DB has data so manual cache clears work
   const sentinel = await getSentinel(year, activeCanton);
   if (sentinel === 'unavailable') return;
-  if (sentinel === 'ok') return;
 
   // Check DB cache keyed by (year, canton)
   const existing = await db
@@ -114,10 +114,7 @@ export async function ensureHolidaysCached(year: number, canton?: string): Promi
       )
     );
 
-  if (existing.length > 0) {
-    await setSentinel(year, activeCanton, 'ok');
-    return;
-  }
+  if (existing.length > 0) return; // DB has data, nothing to do
 
   // Fetch from openholidays.org
   const url =
