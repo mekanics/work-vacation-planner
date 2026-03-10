@@ -11,10 +11,41 @@ const WEEKDAYS = [
   { label: 'Fri', value: 5 },
 ];
 
+const CANTONS = [
+  { code: 'CH',  name: 'Schweizweit (nur nationale Feiertage)' },
+  { code: 'AG',  name: 'Aargau' },
+  { code: 'AI',  name: 'Appenzell Innerrhoden' },
+  { code: 'AR',  name: 'Appenzell Ausserrhoden' },
+  { code: 'BE',  name: 'Bern' },
+  { code: 'BL',  name: 'Basel-Landschaft' },
+  { code: 'BS',  name: 'Basel-Stadt' },
+  { code: 'FR',  name: 'Freiburg' },
+  { code: 'GE',  name: 'Genf' },
+  { code: 'GL',  name: 'Glarus' },
+  { code: 'GR',  name: 'Graubünden' },
+  { code: 'JU',  name: 'Jura' },
+  { code: 'LU',  name: 'Luzern' },
+  { code: 'NE',  name: 'Neuenburg' },
+  { code: 'NW',  name: 'Nidwalden' },
+  { code: 'OW',  name: 'Obwalden' },
+  { code: 'SG',  name: 'St. Gallen' },
+  { code: 'SH',  name: 'Schaffhausen' },
+  { code: 'SO',  name: 'Solothurn' },
+  { code: 'SZ',  name: 'Schwyz' },
+  { code: 'TG',  name: 'Thurgau' },
+  { code: 'TI',  name: 'Tessin' },
+  { code: 'UR',  name: 'Uri' },
+  { code: 'VD',  name: 'Waadt' },
+  { code: 'VS',  name: 'Wallis' },
+  { code: 'ZG',  name: 'Zug' },
+  { code: 'ZH',  name: 'Zürich' },
+];
+
 export function SettingsPanel() {
   const [open, setOpen] = useState(false);
   const [nonWorkingWeekdays, setNonWorkingWeekdays] = useState<number[]>([]);
   const [vacationBudget, setVacationBudget] = useState<string>('0');
+  const [canton, setCanton] = useState<string>('ZH');
   const [saving, setSaving] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -39,6 +70,11 @@ export function SettingsPanel() {
           setVacationBudget(data.vacation_budget);
         } else {
           setVacationBudget('0');
+        }
+        if (data.canton) {
+          setCanton(data.canton);
+        } else {
+          setCanton('ZH');
         }
       })
       .catch(() => {});
@@ -84,6 +120,21 @@ export function SettingsPanel() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ vacation_budget: sanitized }),
+      });
+      router.refresh();
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveOrChangeCanton(code: string) {
+    setCanton(code);
+    setSaving(true);
+    try {
+      await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ canton: code }),
       });
       router.refresh();
     } finally {
@@ -169,6 +220,24 @@ export function SettingsPanel() {
               </button>
             </div>
             <p className="text-xs text-gray-400 mt-1.5">Shown as a tracker in the month summary bar</p>
+          </div>
+
+          {/* Canton selection */}
+          <div className="mt-4">
+            <p className="text-xs font-medium text-gray-600 mb-2">Kanton (Feiertage)</p>
+            <select
+              value={canton}
+              onChange={(e) => saveOrChangeCanton(e.target.value)}
+              disabled={saving}
+              className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm text-gray-800 focus:outline-none focus:ring-1 focus:ring-indigo-400 disabled:opacity-50"
+            >
+              {CANTONS.map(({ code, name }) => (
+                <option key={code} value={code}>
+                  {code === 'CH' ? name : `${code} – ${name}`}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-400 mt-1.5">Nur Feiertage für diesen Kanton werden angezeigt</p>
           </div>
 
           {saving && (

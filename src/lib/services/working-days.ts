@@ -34,7 +34,7 @@ export async function calculateWorkingDays(
 
   // Gather years involved for holiday caching
   const years = [...new Set(allDates.map((d) => getYear(d)))];
-  const holidaySets = await Promise.all(years.map(getHolidayDateSet));
+  const holidaySets = await Promise.all(years.map((y) => getHolidayDateSet(y)));
   const holidayDateSet = new Set<string>(
     holidaySets.flatMap((s) => [...s])
   );

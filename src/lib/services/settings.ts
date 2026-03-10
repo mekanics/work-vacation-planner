@@ -24,6 +24,23 @@ export async function getNonWorkingWeekdays(): Promise<number[]> {
 }
 
 /**
+ * Returns the configured canton code.
+ * Defaults to 'ZH' if not set. 'CH' means nationwide only.
+ */
+export async function getCanton(): Promise<string> {
+  try {
+    const row = await db
+      .select()
+      .from(settings)
+      .where(eq(settings.key, 'canton'))
+      .get();
+    return row?.value ?? process.env.CANTON ?? 'ZH';
+  } catch {
+    return process.env.CANTON ?? 'ZH';
+  }
+}
+
+/**
  * Returns the configured vacation budget (annual target days).
  * Defaults to 0 if not set.
  */

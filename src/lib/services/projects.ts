@@ -168,7 +168,7 @@ export async function calculateProjectWorkingDays(
 
   // Collect years in range for holiday caching
   const years = [...new Set(allDates.map((d) => getYear(d)))];
-  const holidaySets = await Promise.all(years.map(getHolidayDateSet));
+  const holidaySets = await Promise.all(years.map((y) => getHolidayDateSet(y)));
   const holidayDateSet = new Set<string>(holidaySets.flatMap((s) => [...s]));
 
   // Fetch vacation days in effective range from DB

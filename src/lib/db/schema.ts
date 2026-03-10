@@ -9,12 +9,14 @@ export const days = sqliteTable('days', {
 });
 
 export const publicHolidays = sqliteTable('public_holidays', {
-  date: text('date').primaryKey(),
+  date: text('date').notNull(),
   name: text('name').notNull(),
   canton: text('canton').notNull(),
   year: integer('year').notNull(),
   global: integer('global').notNull(),
-});
+}, (t) => ({
+  pk: primaryKey({ columns: [t.date, t.canton] }),
+}));
 
 export const settings = sqliteTable('settings', {
   key: text('key').primaryKey(),
