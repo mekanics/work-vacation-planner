@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameMonth, subDays, addDays } from 'date-fns';
