@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import Link from 'next/link';
+import { SettingsPanel } from '@/components/settings/SettingsPanel';
 import './globals.css';
 
 const geistSans = Geist({
@@ -40,6 +41,7 @@ export default function RootLayout({
               >
                 Projects
               </Link>
+              <SettingsPanel />
             </nav>
           </div>
         </header>

@@ -3,7 +3,8 @@ import { days } from '@/lib/db/schema';
 import { and, eq, gte, lte, or } from 'drizzle-orm';
 import { eachDayInRange, isWeekend, toISODate } from '@/lib/utils/dates';
 import { getHolidayDateSet } from './holidays';
-import { getYear } from 'date-fns';
+import { getNonWorkingWeekdays } from './settings';
+import { getDay, getYear } from 'date-fns';
 
 export interface WorkingDaySummary {
   from: string;
@@ -14,11 +15,13 @@ export interface WorkingDaySummary {
   vacation_days: number;
   working_days: number;
   working_weekend_days?: number;
+  non_working_weekday_days?: number;
 }
 
 /**
  * Calculate working days for a date range.
  * working_days = weekdays - holidays_on_weekdays - vacation_days (de-duped)
+ *              - non_working_weekday_days (weekdays configured as non-working)
  *              + working_weekend_days (explicitly-scheduled weekend days)
  * working_weekend days are weekend days explicitly marked as working, subject to holiday/vacation deduction.
  */
@@ -35,6 +38,10 @@ export async function calculateWorkingDays(
   const holidayDateSet = new Set<string>(
     holidaySets.flatMap((s) => [...s])
   );
+
+  // Fetch non-working weekday configuration
+  const nonWorkingWeekdays = await getNonWorkingWeekdays();
+  const nonWorkingWeekdaySet = new Set(nonWorkingWeekdays);
 
   // Get vacation and working_weekend records in range from DB
   const dayRows = await db
@@ -58,9 +65,11 @@ export async function calculateWorkingDays(
   let holidaysOnWeekdays = 0;
   let vacationOnWeekdays = 0;
   let workingWeekendDays = 0;
+  let nonWorkingWeekdayDays = 0;
 
   for (const date of allDates) {
     const iso = toISODate(date);
+    const dow = getDay(date); // 0=Sun, 1=Mon, ..., 6=Sat
 
     if (isWeekend(date)) {
       // Normal weekends are skipped unless explicitly marked as working_weekend
@@ -71,7 +80,6 @@ export async function calculateWorkingDays(
       const isVacation = vacationSet.has(iso);
 
       if (isHoliday) {
-        // Holiday wins — same counter as weekday holidays for simplicity
         holidaysOnWeekdays++;
       } else if (isVacation) {
         vacationOnWeekdays++;
@@ -84,6 +92,12 @@ export async function calculateWorkingDays(
     // Regular weekday
     weekdays++;
 
+    // Check if this weekday is configured as non-working
+    if (nonWorkingWeekdaySet.has(dow)) {
+      nonWorkingWeekdayDays++;
+      continue; // Don't count as working; skip holiday/vacation counting too
+    }
+
     const isHoliday = holidayDateSet.has(iso);
     const isVacation = vacationSet.has(iso);
 
@@ -95,7 +109,11 @@ export async function calculateWorkingDays(
     }
   }
 
-  const working_days = weekdays - holidaysOnWeekdays - vacationOnWeekdays + workingWeekendDays;
+  const working_days = weekdays
+    - holidaysOnWeekdays
+    - vacationOnWeekdays
+    - nonWorkingWeekdayDays
+    + workingWeekendDays;
 
   return {
     from,
@@ -106,5 +124,6 @@ export async function calculateWorkingDays(
     vacation_days: vacationOnWeekdays,
     working_days: Math.max(0, working_days),
     working_weekend_days: workingWeekendDays,
+    non_working_weekday_days: nonWorkingWeekdayDays,
   };
 }

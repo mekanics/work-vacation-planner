@@ -6,6 +6,7 @@ import { days } from '@/lib/db/schema';
 import { and, gte, lte } from 'drizzle-orm';
 import { getHolidaysForYear } from '@/lib/services/holidays';
 import { calculateWorkingDays } from '@/lib/services/working-days';
+import { getNonWorkingWeekdays } from '@/lib/services/settings';
 import { getProjects, calculateProjectWorkingDays } from '@/lib/services/projects';
 import { BulkWeekdayControl } from '@/components/calendar/BulkWeekdayControl';
 import type { CalendarDay } from '@/types';
@@ -42,6 +43,10 @@ export default async function YearPage({ params }: PageProps) {
   // Fetch holidays
   const holidays = await getHolidaysForYear(year);
   const holidayMap = new Map(holidays.map((h) => [h.date, h.name]));
+
+  // Non-working weekdays from settings
+  const nonWorkingWeekdays = await getNonWorkingWeekdays();
+  const nonWorkingWeekdaySet = new Set(nonWorkingWeekdays);
 
   // Fetch all day records for the entire year
   const yearFrom = `${year}-01-01`;
@@ -81,7 +86,9 @@ export default async function YearPage({ params }: PageProps) {
     const calDays: CalendarDay[] = gridDates.map((date) => {
       const iso = format(date, 'yyyy-MM-dd');
       const dow = getDay(date);
-      const isWeekend = dow === 0 || dow === 6;
+      const isWeekendDay = dow === 0 || dow === 6;
+      const isNonWorkingWeekday = !isWeekendDay && nonWorkingWeekdaySet.has(dow);
+      const isWeekend = isWeekendDay || isNonWorkingWeekday;
       const isHoliday = holidayMap.has(iso);
       const storedType = dayMap.get(iso);
       const dayType =
@@ -110,6 +117,17 @@ export default async function YearPage({ params }: PageProps) {
         <Link href={`/${prevYear}`} className="text-gray-400 hover:text-gray-700 text-2xl px-2" title={`${prevYear}`}>‹</Link>
         <h1 className="text-3xl font-bold text-gray-900">{year}</h1>
         <Link href={`/${nextYear}`} className="text-gray-400 hover:text-gray-700 text-2xl px-2" title={`${nextYear}`}>›</Link>
+      </div>
+
+      {/* Export CSV */}
+      <div className="flex justify-end mb-4">
+        <a
+          href={`/api/export?year=${year}`}
+          download={`work-planner-${year}.csv`}
+          className="text-sm text-indigo-600 hover:text-indigo-800 transition-colors flex items-center gap-1"
+        >
+          ↓ Export CSV
+        </a>
       </div>
 
       {/* Year summary stats */}

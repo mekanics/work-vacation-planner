@@ -15,6 +15,7 @@ import { days } from '@/lib/db/schema';
 import { and, gte, lte } from 'drizzle-orm';
 import { getHolidaysForYear } from '@/lib/services/holidays';
 import { calculateWorkingDays } from '@/lib/services/working-days';
+import { getNonWorkingWeekdays, getVacationBudget } from '@/lib/services/settings';
 import { getProjects, getOverridesForProjects } from '@/lib/services/projects';
 import { MonthGrid } from '@/components/calendar/MonthGrid';
 import { MonthNav } from '@/components/calendar/MonthNav';
@@ -45,6 +46,10 @@ export default async function MonthPage({ params }: PageProps) {
   const holidays = await getHolidaysForYear(year);
   const holidayMap = new Map(holidays.map((h) => [h.date, h.name]));
 
+  // Non-working weekdays from settings
+  const nonWorkingWeekdays = await getNonWorkingWeekdays();
+  const nonWorkingWeekdaySet = new Set(nonWorkingWeekdays);
+
   // Get custom day records for this month range
   const from = format(monthStart, 'yyyy-MM-dd');
   const to = format(monthEnd, 'yyyy-MM-dd');
@@ -74,7 +79,10 @@ export default async function MonthPage({ params }: PageProps) {
   const calendarDays: CalendarDay[] = gridDates.map((date) => {
     const iso = format(date, 'yyyy-MM-dd');
     const dow = getDay(date); // 0=Sun, 6=Sat
-    const isWeekend = dow === 0 || dow === 6;
+    const isWeekendDay = dow === 0 || dow === 6;
+    // Treat configured non-working weekdays as weekend (grey + non-interactive)
+    const isNonWorkingWeekday = !isWeekendDay && nonWorkingWeekdaySet.has(dow);
+    const isWeekend = isWeekendDay || isNonWorkingWeekday;
     const isHoliday = holidayMap.has(iso);
     const storedType = dayMap.get(iso);
     const dayType =
@@ -157,6 +165,12 @@ export default async function MonthPage({ params }: PageProps) {
   // Get month summary for stats
   const summary = await calculateWorkingDays(from, to);
 
+  // Vacation budget + YTD vacation (Jan 1 → end of this month)
+  const vacationBudget = await getVacationBudget();
+  const ytdFrom = `${year}-01-01`;
+  const ytdSummary = await calculateWorkingDays(ytdFrom, to);
+  const vacationUsedYTD = ytdSummary.vacation_days;
+
   const monthLabel = format(monthStart, 'MMMM yyyy');
 
   return (
@@ -186,6 +200,8 @@ export default async function MonthPage({ params }: PageProps) {
           vacation={summary.vacation_days}
           holidays={summary.public_holidays}
           weekdays={summary.weekdays}
+          vacationBudget={vacationBudget}
+          vacationUsedYTD={vacationUsedYTD}
         />
       </div>
 
