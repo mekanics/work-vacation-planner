@@ -40,9 +40,9 @@ const makeRequestNoYear = () =>
 beforeEach(() => {
   vi.clearAllMocks();
   // Reset all mocks to safe defaults
-  (db.select as any).mockReturnThis();
-  (db.from as any).mockReturnThis();
-  (db.where as any).mockResolvedValue([]);
+  (db as any).select.mockReturnThis();
+  (db as any).from.mockReturnThis();
+  (db as any).where.mockResolvedValue([]);
   (getHolidaysForYear as any).mockResolvedValue([]);
   (getNonWorkingWeekdays as any).mockResolvedValue([]);
   (getProjects as any).mockResolvedValue([]);
@@ -171,7 +171,7 @@ describe('GET /api/export — holiday row', () => {
 describe('GET /api/export — vacation row', () => {
   it('a day with dayType="vacation" in DB appears as type "Vacation"', async () => {
     // 2024-01-03 = Wednesday
-    (db.where as any).mockResolvedValue([{ date: '2024-01-03', dayType: 'vacation' }]);
+    (db as any).where.mockResolvedValue([{ date: '2024-01-03', dayType: 'vacation' }]);
 
     const res = await GET(makeRequest('2024'));
     const lines = await getCsvLines(res);
@@ -206,7 +206,7 @@ describe('GET /api/export — non-working weekday', () => {
 describe('GET /api/export — working weekend', () => {
   it('a Saturday with dayType="working_weekend" appears as "Working Weekend"', async () => {
     // 2024-01-06 = Saturday
-    (db.where as any).mockResolvedValue([{ date: '2024-01-06', dayType: 'working_weekend' }]);
+    (db as any).where.mockResolvedValue([{ date: '2024-01-06', dayType: 'working_weekend' }]);
 
     const res = await GET(makeRequest('2024'));
     const lines = await getCsvLines(res);

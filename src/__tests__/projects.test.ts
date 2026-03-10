@@ -44,7 +44,7 @@ function mockDbCalls(
   overrideRows: any[] = [],
   holidaySet: Set<string> = new Set()
 ) {
-  (db.where as any)
+  (db as any).where
     .mockResolvedValueOnce(projectRows)    // getProject
     .mockResolvedValueOnce(vacationRows)   // vacation days
     .mockResolvedValueOnce(overrideRows);  // project overrides
@@ -57,7 +57,7 @@ beforeEach(() => {
 
 describe('calculateProjectWorkingDays', () => {
   it('project not found — returns null', async () => {
-    (db.where as any).mockResolvedValueOnce([]);
+    (db as any).where.mockResolvedValueOnce([]);
     (getHolidayDateSet as any).mockResolvedValue(new Set<string>());
 
     const result = await calculateProjectWorkingDays('proj-1', '2024-01-08', '2024-01-12');
@@ -106,7 +106,7 @@ describe('calculateProjectWorkingDays', () => {
 
   it('range entirely outside project dates — returns 0 working days (not null)', async () => {
     // Project ends before range starts
-    (db.where as any).mockResolvedValueOnce([makeProject({ endDate: '2024-01-05' })]);
+    (db as any).where.mockResolvedValueOnce([makeProject({ endDate: '2024-01-05' })]);
     (getHolidayDateSet as any).mockResolvedValue(new Set<string>());
 
     const result = await calculateProjectWorkingDays('proj-1', '2024-01-08', '2024-01-12');

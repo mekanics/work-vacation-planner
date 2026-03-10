@@ -71,15 +71,15 @@ describe('getCantonSetting', () => {
     expect(result).toBe('BE');
   });
 
-  it('returns ZH when no row found', async () => {
+  it('returns CH when no row found', async () => {
     const chain = makeSelectChain(undefined);
     mockDb.select.mockReturnValue(chain);
 
     const result = await getCantonSetting();
-    expect(result).toBe('ZH');
+    expect(result).toBe('CH');
   });
 
-  it('returns ZH when db throws', async () => {
+  it('returns CH when db throws', async () => {
     const chain = {
       from: vi.fn().mockReturnThis(),
       where: vi.fn().mockReturnThis(),
@@ -88,7 +88,7 @@ describe('getCantonSetting', () => {
     mockDb.select.mockReturnValue(chain);
 
     const result = await getCantonSetting();
-    expect(result).toBe('ZH');
+    expect(result).toBe('CH');
   });
 });
 
