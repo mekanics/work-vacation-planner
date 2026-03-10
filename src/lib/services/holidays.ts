@@ -58,24 +58,38 @@ function sentinelKey(year: number, canton: string): string {
   return `holidays_fetched_${year}_${canton}`;
 }
 
-async function getSentinel(year: number, canton: string): Promise<string | null> {
+// How long to wait before retrying a failed/empty fetch (7 days in ms)
+const UNAVAILABLE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Returns true if the sentinel indicates a recent failed fetch that shouldn't be retried yet.
+ * Sentinel value is an ISO timestamp of when the fetch failed.
+ * After UNAVAILABLE_TTL_MS, returns false so a retry is allowed.
+ */
+async function isFetchBlocked(year: number, canton: string): Promise<boolean> {
   try {
     const row = await db
       .select()
       .from(settings)
       .where(eq(settings.key, sentinelKey(year, canton)))
       .get();
-    return row?.value ?? null;
+    if (!row || row.value === 'ok') return false;
+    // Value is an ISO timestamp of the last failed attempt
+    const lastAttempt = new Date(row.value).getTime();
+    if (isNaN(lastAttempt)) return false;
+    return Date.now() - lastAttempt < UNAVAILABLE_TTL_MS;
   } catch {
-    return null;
+    return false;
   }
 }
 
 async function setSentinel(year: number, canton: string, value: 'ok' | 'unavailable'): Promise<void> {
   const key = sentinelKey(year, canton);
+  // For unavailable: store the current timestamp so we can retry after TTL
+  const stored = value === 'unavailable' ? new Date().toISOString() : 'ok';
   await db.insert(settings)
-    .values({ key, value })
-    .onConflictDoUpdate({ target: settings.key, set: { value } });
+    .values({ key, value: stored })
+    .onConflictDoUpdate({ target: settings.key, set: { value: stored } });
 }
 
 // ─── Name helper ─────────────────────────────────────────────────────────────
@@ -98,10 +112,9 @@ function pickName(names: OpenHolidayName[]): string {
 export async function ensureHolidaysCached(year: number, canton?: string): Promise<void> {
   const activeCanton = canton ?? await getCantonSetting();
 
-  // Check sentinel only for known-unavailable years (future years the API doesn't have yet)
-  // Do NOT short-circuit on 'ok' — always verify DB has data so manual cache clears work
-  const sentinel = await getSentinel(year, activeCanton);
-  if (sentinel === 'unavailable') return;
+  // Only block if a recent fetch attempt failed (within TTL window)
+  // After TTL expires the fetch is retried automatically
+  if (await isFetchBlocked(year, activeCanton)) return;
 
   // Check DB cache keyed by (year, canton)
   const existing = await db
