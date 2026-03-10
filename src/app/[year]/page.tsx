@@ -8,7 +8,6 @@ import { getHolidaysForYear } from '@/lib/services/holidays';
 import { calculateWorkingDays } from '@/lib/services/working-days';
 import { getNonWorkingWeekdays } from '@/lib/services/settings';
 import { getProjects, calculateProjectWorkingDays } from '@/lib/services/projects';
-import { BulkWeekdayControl } from '@/components/calendar/BulkWeekdayControl';
 import type { CalendarDay } from '@/types';
 
 interface PageProps {
@@ -191,11 +190,6 @@ export default async function YearPage({ params }: PageProps) {
           </div>
         </div>
       )}
-
-      {/* Bulk weekday control */}
-      <div className="mb-8">
-        <BulkWeekdayControl year={year} />
-      </div>
 
       {/* 12-month grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
