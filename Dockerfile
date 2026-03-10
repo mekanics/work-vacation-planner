@@ -4,7 +4,7 @@ FROM node:22-alpine AS base
 FROM base AS deps
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci --include=dev
+RUN npm ci
 
 # Builder
 FROM base AS builder
