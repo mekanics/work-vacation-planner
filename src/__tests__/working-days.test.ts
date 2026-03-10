@@ -14,12 +14,20 @@ vi.mock('@/lib/services/holidays', () => ({
   getHolidayDateSet: vi.fn(),
 }));
 
+// Mock settings service — calculateWorkingDays calls getNonWorkingWeekdays()
+vi.mock('@/lib/services/settings', () => ({
+  getNonWorkingWeekdays: vi.fn(),
+}));
+
 import { calculateWorkingDays } from '@/lib/services/working-days';
 import { db } from '@/lib/db';
 import { getHolidayDateSet } from '@/lib/services/holidays';
+import { getNonWorkingWeekdays } from '@/lib/services/settings';
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Default: no non-working weekdays (preserves existing test behaviour)
+  (getNonWorkingWeekdays as any).mockResolvedValue([]);
 });
 
 describe('calculateWorkingDays', () => {
@@ -168,4 +176,66 @@ describe('calculateWorkingDays — working weekends', () => {
     expect(result.working_days).toBe(0);
   });
 
+});
+
+describe('calculateWorkingDays — non-working weekdays', () => {
+  // Reference week: 2024-01-08 (Mon) to 2024-01-12 (Fri)
+  // dow: Mon=1, Tue=2, Wed=3, Thu=4, Fri=5
+
+  it('Friday (dow=5) configured as non-working: Mon–Fri → weekdays=5, non_working_weekday_days=1, working_days=4', async () => {
+    (db.where as any).mockResolvedValue([]);
+    (getHolidayDateSet as any).mockResolvedValue(new Set<string>());
+    (getNonWorkingWeekdays as any).mockResolvedValue([5]); // Friday is non-working
+
+    const result = await calculateWorkingDays('2024-01-08', '2024-01-12');
+    expect(result.weekdays).toBe(5);
+    expect(result.non_working_weekday_days).toBe(1);
+    expect(result.working_days).toBe(4);
+  });
+
+  it('Mon+Fri (dow=1,5) configured as non-working: Mon–Fri → weekdays=5, non_working_weekday_days=2, working_days=3', async () => {
+    (db.where as any).mockResolvedValue([]);
+    (getHolidayDateSet as any).mockResolvedValue(new Set<string>());
+    (getNonWorkingWeekdays as any).mockResolvedValue([1, 5]); // Monday and Friday are non-working
+
+    const result = await calculateWorkingDays('2024-01-08', '2024-01-12');
+    expect(result.weekdays).toBe(5);
+    expect(result.non_working_weekday_days).toBe(2);
+    expect(result.working_days).toBe(3);
+  });
+
+  it('non-working weekday that is also a holiday — holiday NOT counted (non-working skip takes priority)', async () => {
+    (db.where as any).mockResolvedValue([]);
+    // Friday 2024-01-12 is both non-working AND a holiday
+    (getHolidayDateSet as any).mockResolvedValue(new Set(['2024-01-12']));
+    (getNonWorkingWeekdays as any).mockResolvedValue([5]); // Friday is non-working
+
+    const result = await calculateWorkingDays('2024-01-08', '2024-01-12');
+    expect(result.public_holidays).toBe(0);   // holiday not counted (day skipped via nonWorkingWeekdaySet)
+    expect(result.non_working_weekday_days).toBe(1);
+    expect(result.working_days).toBe(4);
+  });
+
+  it('non-working weekday with a vacation DB entry — vacation NOT counted', async () => {
+    // Friday 2024-01-12 is non-working AND has a vacation entry
+    (db.where as any).mockResolvedValue([{ date: '2024-01-12', dayType: 'vacation' }]);
+    (getHolidayDateSet as any).mockResolvedValue(new Set<string>());
+    (getNonWorkingWeekdays as any).mockResolvedValue([5]); // Friday is non-working
+
+    const result = await calculateWorkingDays('2024-01-08', '2024-01-12');
+    expect(result.vacation_days).toBe(0);     // vacation not counted (non-working skips vacation logic)
+    expect(result.non_working_weekday_days).toBe(1);
+    expect(result.working_days).toBe(4);
+  });
+
+  it('no non-working weekdays configured ([]) — existing behaviour unchanged, non_working_weekday_days=0', async () => {
+    (db.where as any).mockResolvedValue([]);
+    (getHolidayDateSet as any).mockResolvedValue(new Set<string>());
+    (getNonWorkingWeekdays as any).mockResolvedValue([]); // no non-working weekdays
+
+    const result = await calculateWorkingDays('2024-01-08', '2024-01-12');
+    expect(result.weekdays).toBe(5);
+    expect(result.non_working_weekday_days).toBe(0);
+    expect(result.working_days).toBe(5);
+  });
 });
