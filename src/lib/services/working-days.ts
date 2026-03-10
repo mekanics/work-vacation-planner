@@ -101,12 +101,11 @@ export async function calculateWorkingDays(
     const isHoliday = holidayDateSet.has(iso);
     const isVacation = vacationSet.has(iso);
 
-    // Vacation wins over holiday when explicitly set by the user
-    // (e.g. employer doesn't observe this holiday — user spent a vacation day)
-    if (isVacation) {
-      vacationOnWeekdays++;
-    } else if (isHoliday) {
+    // Holiday always wins — you don't burn a vacation day on a bank holiday
+    if (isHoliday) {
       holidaysOnWeekdays++;
+    } else if (isVacation) {
+      vacationOnWeekdays++;
     }
   }
 
