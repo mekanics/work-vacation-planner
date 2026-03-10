@@ -20,7 +20,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV DATABASE_PATH=/data/planner.db
 
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN addgroup -S -g 1000 appgroup && adduser -S -u 1000 appuser -G appgroup
 
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
