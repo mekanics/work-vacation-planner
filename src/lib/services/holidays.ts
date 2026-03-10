@@ -36,7 +36,7 @@ export interface Holiday {
 
 /**
  * Reads the active canton from the settings table.
- * Falls back to CANTON env var or 'ZH' if not set.
+ * Falls back to 'CH' if not set.
  * Special value 'CH' means nationwide-only (no canton-specific filtering).
  */
 export async function getCantonSetting(): Promise<string> {
