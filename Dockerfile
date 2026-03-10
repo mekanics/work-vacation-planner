@@ -20,8 +20,6 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV DATABASE_PATH=/data/planner.db
 
-RUN addgroup -S -g 1000 appgroup && adduser -S -u 1000 appuser -G appgroup
-
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
@@ -33,10 +31,11 @@ COPY entrypoint.sh ./entrypoint.sh
 # standalone/node_modules. Copy it explicitly so migrate.ts can import it.
 COPY --from=deps /app/node_modules/drizzle-orm ./node_modules/drizzle-orm
 
-RUN mkdir -p /data && chown -R appuser:appgroup /data /app
+# node:22-alpine already ships with user 'node' at UID/GID 1000 — use it directly
+RUN mkdir -p /data && chown -R node:node /data /app
 RUN chmod +x entrypoint.sh
 
-USER appuser
+USER node
 
 EXPOSE 3000
 ENTRYPOINT ["./entrypoint.sh"]
