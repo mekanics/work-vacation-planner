@@ -337,10 +337,9 @@ interface CalendarTabProps {
 
 function CalendarTab({ project, initialMonth, calendarDays, calendarSummary }: CalendarTabProps) {
   const router = useRouter();
-  const [currentMonth] = useState(initialMonth);
 
-  // Parse the current month for navigation
-  const [yearStr, monthStr] = currentMonth.split('-');
+  // Parse the current month for navigation (use prop directly — state would stale on re-render)
+  const [yearStr, monthStr] = initialMonth.split('-');
   const year = parseInt(yearStr, 10);
   const month = parseInt(monthStr, 10);
   const monthDate = new Date(year, month - 1, 1);
