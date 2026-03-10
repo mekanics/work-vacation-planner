@@ -25,6 +25,7 @@ const DOT_COLORS: Record<string, string> = {
   holiday: 'bg-blue-400',
   weekend: 'bg-gray-300',
   working: 'bg-gray-100',
+  working_weekend: 'bg-orange-400',
 };
 
 interface MiniMonth {
@@ -92,7 +93,9 @@ export default async function YearPage({ params }: PageProps) {
       const isHoliday = holidayMap.has(iso);
       const storedType = dayMap.get(iso);
       const dayType =
-        storedType === 'vacation' ? 'vacation' : 'working';
+        storedType === 'vacation' ? 'vacation'
+        : storedType === 'working_weekend' ? 'working_weekend'
+        : 'working';
 
       return {
         date: iso,
@@ -217,6 +220,8 @@ export default async function YearPage({ params }: PageProps) {
                   dotColor = 'bg-transparent';
                 } else if (day.isHoliday) {
                   dotColor = DOT_COLORS.holiday;
+                } else if (day.dayType === 'working_weekend') {
+                  dotColor = DOT_COLORS.working_weekend;
                 } else if (day.isWeekend) {
                   dotColor = DOT_COLORS.weekend;
                 } else if (day.dayType === 'vacation') {
@@ -236,7 +241,7 @@ export default async function YearPage({ params }: PageProps) {
             </div>
             {/* Working day count */}
             <div className="mt-2 text-xs text-gray-400">
-              {calDays.filter(d => d.isCurrentMonth && !d.isWeekend && !d.isHoliday && d.dayType !== 'vacation').length} working days
+              {calDays.filter(d => d.isCurrentMonth && (!d.isWeekend || d.dayType === 'working_weekend') && !d.isHoliday && d.dayType !== 'vacation').length} working days
             </div>
           </Link>
         ))}
@@ -248,6 +253,7 @@ export default async function YearPage({ params }: PageProps) {
         <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-green-400" /><span>Vacation</span></div>
         <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-blue-400" /><span>Holiday</span></div>
         <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-gray-300" /><span>Weekend</span></div>
+        <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-orange-400" /><span>Working weekend</span></div>
       </div>
     </div>
   );
