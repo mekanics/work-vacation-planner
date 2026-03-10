@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { calculateProjectWorkingDays } from '@/lib/services/projects';
 import { isValidISODate } from '@/lib/utils/dates';
