@@ -162,6 +162,14 @@ export default async function MonthPage({ params }: PageProps) {
     return { ...day, projectStripes, projectColours };
   });
 
+  // Projects active in this month (have at least one included stripe on a current-month day)
+  const activeProjectIds = new Set(
+    enrichedCalendarDays
+      .filter((d) => d.isCurrentMonth)
+      .flatMap((d) => (d.projectStripes ?? []).filter((s) => s.included).map((s) => s.projectId))
+  );
+  const activeProjects = allProjects.filter((p) => activeProjectIds.has(p.id));
+
   // Get month summary for stats
   const summary = await calculateWorkingDays(from, to);
 
@@ -225,10 +233,10 @@ export default async function MonthPage({ params }: PageProps) {
         </div>
       </div>
 
-      {/* Project legend */}
-      {allProjects.length > 0 && (
+      {/* Project legend — only projects with active days this month */}
+      {activeProjects.length > 0 && (
         <div className="flex flex-wrap gap-3 mb-3 text-xs">
-          {allProjects.map((project) => (
+          {activeProjects.map((project) => (
             <div key={project.id} className="flex items-center gap-1.5">
               <div
                 className="w-3 h-3 rounded-sm"
