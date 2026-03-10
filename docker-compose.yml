@@ -7,7 +7,6 @@ services:
       - planner-data:/data
     environment:
       - DATABASE_PATH=/data/planner.db
-      - CANTON=ZH
     restart: unless-stopped
 
 volumes:
