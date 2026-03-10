@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { addMonths, subMonths, format } from 'date-fns';
+import { addMonths, subMonths } from 'date-fns';
 
 interface MonthNavProps {
   year: number;

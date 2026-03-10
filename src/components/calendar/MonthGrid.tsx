@@ -23,7 +23,7 @@ function groupByWeeks(days: CalendarDay[]): CalendarDay[][] {
   return weeks;
 }
 
-export function MonthGrid({ days, year, month }: MonthGridProps) {
+export function MonthGrid({ days }: MonthGridProps) {
   const router = useRouter();
 
   // Drag state (refs to avoid stale closures in event handlers)

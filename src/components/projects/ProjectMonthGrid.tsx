@@ -39,8 +39,6 @@ export function ProjectMonthGrid({
   days,
   projectId,
   projectColour,
-  year,
-  month,
 }: ProjectMonthGridProps) {
   const router = useRouter();
 
