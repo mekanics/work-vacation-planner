@@ -36,6 +36,11 @@ COPY entrypoint.sh ./entrypoint.sh
 # standalone/node_modules. Copy it explicitly so migrate.ts can import it.
 COPY --from=deps /app/node_modules/drizzle-orm ./node_modules/drizzle-orm
 
+# Install ARM64 libsql native binary (runner stage is native arm64 on ARM64 hosts — no QEMU).
+# The deps/builder stages only install the amd64 binary; this adds the arm64 one additively.
+RUN npm install --no-save @libsql/linux-arm64-musl --no-package-lock 2>/dev/null || \
+    (echo '{}' > /app/package.json && npm install --no-save @libsql/linux-arm64-musl --no-package-lock)
+
 # node:22-alpine already ships with user 'node' at UID/GID 1000 — use it directly
 RUN mkdir -p /data && chown -R node:node /data /app
 RUN chmod +x entrypoint.sh
