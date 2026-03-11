@@ -1,4 +1,3 @@
---> statement-breakpoint
 CREATE TABLE `public_holidays_new` (
   `date` text NOT NULL,
   `name` text NOT NULL,
