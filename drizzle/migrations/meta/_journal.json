@@ -15,6 +15,27 @@
       "when": 1773042700000,
       "tag": "0001_add_projects",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1773042800000,
+      "tag": "0002_add_project_day_overrides",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1773042900000,
+      "tag": "0003_merge_day_off",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1773043000000,
+      "tag": "0004_canton_composite_pk",
+      "breakpoints": true
     }
   ]
 }
