@@ -19,7 +19,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN pnpm build
 
-# Runner — targets the final platform; only receives compiled JS output (no native binaries)
+# Runner — targets the final platform; node_modules (incl. all native binaries) copied from deps
 FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
@@ -36,10 +36,8 @@ COPY entrypoint.sh ./entrypoint.sh
 # standalone/node_modules. Copy it explicitly so migrate.ts can import it.
 COPY --from=deps /app/node_modules/drizzle-orm ./node_modules/drizzle-orm
 
-# Install ARM64 libsql native binary (runner stage is native arm64 on ARM64 hosts — no QEMU).
-# The deps/builder stages only install the amd64 binary; this adds the arm64 one additively.
-RUN npm install --no-save @libsql/linux-arm64-musl --no-package-lock 2>/dev/null || \
-    (echo '{}' > /app/package.json && npm install --no-save @libsql/linux-arm64-musl --no-package-lock)
+# libsql client and its native binaries (installed for all arches via pnpm supportedArchitectures)
+COPY --from=deps /app/node_modules/@libsql ./node_modules/@libsql
 
 # node:22-alpine already ships with user 'node' at UID/GID 1000 — use it directly
 RUN mkdir -p /data && chown -R node:node /data /app
