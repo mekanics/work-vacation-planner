@@ -170,7 +170,7 @@ function NewProjectModal({ onClose, onSaved }: NewProjectModalProps) {
           </div>
 
           {/* Date range */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Start date <span className="text-gray-400">(optional)</span>
@@ -179,7 +179,7 @@ function NewProjectModal({ onClose, onSaved }: NewProjectModalProps) {
                 type="date"
                 value={form.startDate}
                 onChange={(e) => setForm((p) => ({ ...p, startDate: e.target.value }))}
-                className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                className="w-full min-w-0 border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
               />
             </div>
             <div>
@@ -190,7 +190,7 @@ function NewProjectModal({ onClose, onSaved }: NewProjectModalProps) {
                 type="date"
                 value={form.endDate}
                 onChange={(e) => setForm((p) => ({ ...p, endDate: e.target.value }))}
-                className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                className="w-full min-w-0 border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
               />
             </div>
           </div>
