@@ -2,11 +2,13 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { calculateWorkingDays } from '@/lib/services/working-days';
+import { calculateProjectWorkingDays } from '@/lib/services/projects';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const yearParam = searchParams.get('year');
+  const projectId = searchParams.get('project');
   const year = yearParam ? parseInt(yearParam, 10) : new Date().getFullYear();
 
   if (isNaN(year) || year < 2000 || year > 2100) {
@@ -23,15 +25,28 @@ export async function GET(request: NextRequest) {
       const from = format(monthStart, 'yyyy-MM-dd');
       const to = format(monthEnd, 'yyyy-MM-dd');
 
-      const summary = await calculateWorkingDays(from, to);
-
-      months.push({
-        month: format(monthStart, 'yyyy-MM'),
-        weekdays: summary.weekdays,
-        public_holidays: summary.public_holidays,
-        vacation_days: summary.vacation_days,
-        working_days: summary.working_days,
-      });
+      if (projectId) {
+        const summary = await calculateProjectWorkingDays(projectId, from, to);
+        if (summary === null) {
+          return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+        }
+        months.push({
+          month: format(monthStart, 'yyyy-MM'),
+          weekdays: 0,
+          public_holidays: summary.holidays,
+          vacation_days: summary.vacation_days,
+          working_days: summary.working_days,
+        });
+      } else {
+        const summary = await calculateWorkingDays(from, to);
+        months.push({
+          month: format(monthStart, 'yyyy-MM'),
+          weekdays: summary.weekdays,
+          public_holidays: summary.public_holidays,
+          vacation_days: summary.vacation_days,
+          working_days: summary.working_days,
+        });
+      }
     }
 
     return NextResponse.json({
