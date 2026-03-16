@@ -60,12 +60,17 @@ export default async function YearPage({ params }: PageProps) {
   // Year-level summary
   const yearSummary = await calculateWorkingDays(yearFrom, yearTo);
 
-  // Fetch projects and their year-level working day counts
+  // Fetch projects and their year-level working day counts + remaining from today
   const allProjects = await getProjects();
+  const today = format(new Date(), 'yyyy-MM-dd');
   const projectYearSummaries = await Promise.all(
     allProjects.map(async (project) => {
       const summary = await calculateProjectWorkingDays(project.id, yearFrom, yearTo);
-      return { project, summary };
+      const effectiveTo = project.endDate && project.endDate >= today ? project.endDate : yearTo;
+      const remaining = today <= effectiveTo
+        ? await calculateProjectWorkingDays(project.id, today, effectiveTo)
+        : null;
+      return { project, summary, remaining };
     })
   );
 
@@ -161,10 +166,11 @@ export default async function YearPage({ params }: PageProps) {
                   <th className="text-right px-3 py-2 text-xs font-medium text-gray-500">Holidays</th>
                   <th className="text-right px-3 py-2 text-xs font-medium text-gray-500">Vacation</th>
                   <th className="text-right px-3 py-2 text-xs font-medium text-gray-500 font-semibold">Working</th>
+                  <th className="text-right px-3 py-2 text-xs font-medium text-emerald-600 font-semibold">Remaining</th>
                 </tr>
               </thead>
               <tbody>
-                {projectYearSummaries.map(({ project, summary }) => (
+                {projectYearSummaries.map(({ project, summary, remaining }) => (
                   <tr key={project.id} className="border-b last:border-0">
                     <td className="px-3 py-2">
                       <div className="flex items-center gap-2">
@@ -184,6 +190,7 @@ export default async function YearPage({ params }: PageProps) {
                     <td className="px-3 py-2 text-right text-blue-600">{summary?.holidays ?? 0}</td>
                     <td className="px-3 py-2 text-right text-green-600">{summary?.vacation_days ?? 0}</td>
                     <td className="px-3 py-2 text-right font-semibold text-gray-900">{summary?.working_days ?? 0}</td>
+                    <td className="px-3 py-2 text-right font-semibold text-emerald-600">{remaining?.working_days ?? 0}</td>
                   </tr>
                 ))}
               </tbody>
