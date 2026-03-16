@@ -54,6 +54,13 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
   // Compute days remaining (today → Dec 31, exclusive of today)
   const daysRemaining = getDaysRemainingThisYear(project, overrides, now, holidaySet);
 
+  // Compute working days remaining (same window but with vacation days subtracted)
+  const todayISO = format(addDays(now, 1), 'yyyy-MM-dd');
+  const windowTo = project.endDate && project.endDate < yearTo ? project.endDate : yearTo;
+  const remainingSummary = await calculateProjectWorkingDays(id, todayISO, windowTo);
+  const workingDaysRemaining = remainingSummary?.working_days ?? 0;
+  const vacationDaysInWindow = remainingSummary?.vacation_days ?? 0;
+
   // Compute next working day (after today)
   const nextWorkingDay = getNextWorkingDay(project, overrides, now, holidaySet);
 
@@ -162,6 +169,8 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
         project={project}
         yearWorkingDays={yearWorkingDays}
         daysRemaining={daysRemaining}
+        workingDaysRemaining={workingDaysRemaining}
+        vacationDaysInWindow={vacationDaysInWindow}
         nextWorkingDay={nextWorkingDay}
         overrides={overrides}
         initialTab={initialTab}
