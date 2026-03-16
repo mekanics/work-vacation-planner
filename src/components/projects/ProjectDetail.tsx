@@ -33,6 +33,8 @@ export interface ProjectDetailProps {
   project: ProjectRecord;
   yearWorkingDays: number;
   daysRemaining: number;
+  workingDaysRemaining: number;
+  vacationDaysInWindow: number;
   nextWorkingDay: string | null;
   overrides: ProjectDayOverride[];
   initialTab?: Tab;
@@ -222,18 +224,20 @@ interface OverviewTabProps {
   project: ProjectRecord;
   yearWorkingDays: number;
   daysRemaining: number;
+  workingDaysRemaining: number;
+  vacationDaysInWindow: number;
   nextWorkingDay: string | null;
   overrides: ProjectDayOverride[];
 }
 
-function OverviewTab({ project, yearWorkingDays, daysRemaining, nextWorkingDay, overrides }: OverviewTabProps) {
+function OverviewTab({ project, yearWorkingDays, daysRemaining, workingDaysRemaining, vacationDaysInWindow, nextWorkingDay, overrides }: OverviewTabProps) {
   const includeOverrides = overrides.filter((o) => o.type === 'include');
   const excludeOverrides = overrides.filter((o) => o.type === 'exclude');
 
   return (
     <div className="space-y-6">
       {/* Stats cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-white border rounded-lg px-4 py-3">
           <div className="text-xs text-gray-500 uppercase tracking-wide font-medium mb-1">Working days this year</div>
           <div className="text-2xl font-bold text-gray-900">{yearWorkingDays}</div>
@@ -241,6 +245,15 @@ function OverviewTab({ project, yearWorkingDays, daysRemaining, nextWorkingDay, 
         <div className="bg-white border rounded-lg px-4 py-3">
           <div className="text-xs text-gray-500 uppercase tracking-wide font-medium mb-1">Days remaining</div>
           <div className="text-2xl font-bold text-indigo-600">{daysRemaining}</div>
+        </div>
+        <div className="bg-white border rounded-lg px-4 py-3">
+          <div className="text-xs text-gray-500 uppercase tracking-wide font-medium mb-1">Working days remaining</div>
+          <div className="text-2xl font-bold text-emerald-600">{workingDaysRemaining}</div>
+          {vacationDaysInWindow > 0 && (
+            <div className="text-xs text-gray-400 mt-0.5">
+              {vacationDaysInWindow} vacation {vacationDaysInWindow === 1 ? 'day' : 'days'} planned
+            </div>
+          )}
         </div>
         <div className="bg-white border rounded-lg px-4 py-3">
           <div className="text-xs text-gray-500 uppercase tracking-wide font-medium mb-1">Next working day</div>
@@ -429,6 +442,8 @@ export function ProjectDetail({
   project,
   yearWorkingDays,
   daysRemaining,
+  workingDaysRemaining,
+  vacationDaysInWindow,
   nextWorkingDay,
   overrides,
   initialTab = 'overview',
@@ -523,6 +538,8 @@ export function ProjectDetail({
           project={project}
           yearWorkingDays={yearWorkingDays}
           daysRemaining={daysRemaining}
+          workingDaysRemaining={workingDaysRemaining}
+          vacationDaysInWindow={vacationDaysInWindow}
           nextWorkingDay={nextWorkingDay}
           overrides={overrides}
         />
