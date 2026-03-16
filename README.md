@@ -57,6 +57,41 @@ Canton is configured in the app settings UI, not via environment variable.
 
 ---
 
+## API
+
+The app exposes a REST API documented with OpenAPI 3.1.
+
+- **Swagger UI:** [http://localhost:3000/docs](http://localhost:3000/docs) — interactive, try-it-out browser
+- **OpenAPI spec:** [http://localhost:3000/openapi.yaml](http://localhost:3000/openapi.yaml) — importable into n8n, Postman, Insomnia, etc.
+
+### Endpoint Index
+
+| Method   | Path                                   | Purpose                                    |
+|----------|----------------------------------------|--------------------------------------------|
+| `GET`    | `/api/working-days`                    | Global or per-project working day stats    |
+| `GET`    | `/api/summary`                         | Full-year monthly breakdown                |
+| `GET`    | `/api/export`                          | CSV download                               |
+| `POST`   | `/api/days`                            | Upsert a day (vacation/working)            |
+| `POST`   | `/api/days/batch`                      | Bulk upsert/delete day records             |
+| `GET`    | `/api/days/{date}`                     | Get a specific day record                  |
+| `PUT`    | `/api/days/{date}`                     | Update a day (vacation/working/working_weekend) |
+| `DELETE` | `/api/days/{date}`                     | Remove a day marking                       |
+| `GET`    | `/api/settings`                        | Read all settings key-value pairs          |
+| `PUT`    | `/api/settings`                        | Write settings                             |
+| `GET`    | `/api/projects`                        | List all projects                          |
+| `POST`   | `/api/projects`                        | Create a project                           |
+| `GET`    | `/api/projects/{id}`                   | Get one project                            |
+| `PUT`    | `/api/projects/{id}`                   | Update a project                           |
+| `DELETE` | `/api/projects/{id}`                   | Delete a project                           |
+| `GET`    | `/api/projects/{id}/working-days`      | Per-project working day stats              |
+| `GET`    | `/api/projects/{id}/overrides`         | List day overrides for a project           |
+| `POST`   | `/api/projects/{id}/overrides`         | Upsert override (include/exclude)          |
+| `DELETE` | `/api/projects/{id}/overrides/{date}`  | Remove an override                         |
+
+> **n8n tip:** Import `http://<your-homelab-host>:3000/openapi.yaml` as an HTTP Request credential base URL or use the OpenAPI node to auto-generate all operations.
+
+---
+
 ## Tech Stack
 
 - **Next.js 16** (App Router, server + client components)

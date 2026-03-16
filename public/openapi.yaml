@@ -1,0 +1,799 @@
+openapi: 3.1.0
+info:
+  title: Work & Vacation Planner API
+  version: 1.0.0
+  description: |
+    REST API for the Work & Vacation Planner — a homelab tool for tracking
+    working days, vacation budgets, public holidays, and project schedules.
+
+    Import this file into n8n or any OpenAPI-compatible client.
+    Base URL on your homelab: `http://<your-host>:3000`
+
+servers:
+  - url: /api
+    description: Relative (same origin)
+
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          example: Invalid date format (YYYY-MM-DD)
+
+    DayRecord:
+      type: object
+      required: [date, dayType, createdAt, updatedAt]
+      properties:
+        date:
+          type: string
+          format: date
+          example: "2025-08-15"
+        dayType:
+          type: string
+          enum: [vacation, working, working_weekend]
+          example: vacation
+        note:
+          type: string
+          nullable: true
+          example: "Summer holiday"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2025-01-01T10:00:00.000Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2025-01-01T10:00:00.000Z"
+
+    WorkingDaySummary:
+      type: object
+      required: [from, to, total_days, weekdays, public_holidays, vacation_days, working_days]
+      properties:
+        from:
+          type: string
+          format: date
+          example: "2025-01-01"
+        to:
+          type: string
+          format: date
+          example: "2025-12-31"
+        total_days:
+          type: integer
+          example: 365
+        weekdays:
+          type: integer
+          description: Number of weekdays (Mon–Fri) in the range
+          example: 261
+        public_holidays:
+          type: integer
+          description: Public holidays that fall on weekdays
+          example: 9
+        vacation_days:
+          type: integer
+          description: Vacation days taken (on working weekdays)
+          example: 15
+        working_days:
+          type: integer
+          description: Actual billable working days
+          example: 237
+        working_weekend_days:
+          type: integer
+          description: Weekend days explicitly marked as working
+          example: 0
+        non_working_weekday_days:
+          type: integer
+          description: Weekdays configured as non-working (e.g. permanent day off)
+          example: 0
+
+    ProjectWorkingDaySummary:
+      type: object
+      required: [project_id, project_name, from, to, total_project_days, holidays, vacation_days, working_days]
+      properties:
+        project_id:
+          type: string
+          format: uuid
+          example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        project_name:
+          type: string
+          example: "Client A"
+        from:
+          type: string
+          format: date
+          example: "2025-01-01"
+        to:
+          type: string
+          format: date
+          example: "2025-12-31"
+        total_project_days:
+          type: integer
+          description: Days matching the project weekday mask
+          example: 200
+        holidays:
+          type: integer
+          example: 7
+        vacation_days:
+          type: integer
+          example: 10
+        working_days:
+          type: integer
+          example: 183
+
+    Project:
+      type: object
+      required: [id, name, colour, weekdays, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        name:
+          type: string
+          example: "Client A"
+        colour:
+          type: string
+          description: Hex colour string
+          example: "#4f86c6"
+        startDate:
+          type: string
+          format: date
+          nullable: true
+          example: "2025-01-01"
+        endDate:
+          type: string
+          format: date
+          nullable: true
+          example: "2025-12-31"
+        weekdays:
+          type: array
+          items:
+            type: integer
+            minimum: 0
+            maximum: 6
+          description: "Day-of-week numbers active for this project (0=Sun, 1=Mon … 6=Sat)"
+          example: [1, 2, 3, 4, 5]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ProjectDayOverride:
+      type: object
+      required: [projectId, date, type]
+      properties:
+        projectId:
+          type: string
+          format: uuid
+        date:
+          type: string
+          format: date
+          example: "2025-06-10"
+        type:
+          type: string
+          enum: [include, exclude]
+          example: exclude
+
+    MonthlySummary:
+      type: object
+      required: [month, weekdays, public_holidays, vacation_days, working_days]
+      properties:
+        month:
+          type: string
+          example: "2025-01"
+        weekdays:
+          type: integer
+        public_holidays:
+          type: integer
+        vacation_days:
+          type: integer
+        working_days:
+          type: integer
+
+    YearlySummary:
+      type: object
+      required: [year, months]
+      properties:
+        year:
+          type: integer
+          example: 2025
+        months:
+          type: array
+          items:
+            $ref: "#/components/schemas/MonthlySummary"
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+
+paths:
+  /working-days:
+    get:
+      summary: Global or per-project working day stats
+      description: Returns a WorkingDaySummary for the given date range. If `project` is provided, returns a ProjectWorkingDaySummary scoped to that project's weekday mask and overrides.
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          example: "2025-01-01"
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          example: "2025-12-31"
+        - name: project
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Project UUID — if provided returns per-project stats
+          example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+      responses:
+        "200":
+          description: Working day statistics
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/WorkingDaySummary"
+                  - $ref: "#/components/schemas/ProjectWorkingDaySummary"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /summary:
+    get:
+      summary: Full-year monthly breakdown
+      description: Returns working day stats broken down by month for a given year.
+      parameters:
+        - name: year
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 2000
+            maximum: 2100
+          example: 2025
+      responses:
+        "200":
+          description: Yearly summary with monthly breakdown
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/YearlySummary"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /export:
+    get:
+      summary: CSV export of all working days for a year
+      description: Downloads a CSV file listing every working day (weekdays only, excluding regular weekends) with type, holiday name, and active projects.
+      parameters:
+        - name: year
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 2000
+            maximum: 2100
+          example: 2025
+      responses:
+        "200":
+          description: CSV file
+          content:
+            text/csv:
+              schema:
+                type: string
+              example: |
+                Date,DayOfWeek,Type,Holiday Name,Projects
+                2025-01-01,Wednesday,Holiday,New Year's Day,
+                2025-01-02,Thursday,Working,,Client A
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /days:
+    post:
+      summary: Upsert a single day record
+      description: Creates or updates a day entry. Use `vacation` to mark a vacation day or `working` to reset it to normal.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [date, day_type]
+              properties:
+                date:
+                  type: string
+                  format: date
+                  example: "2025-08-15"
+                day_type:
+                  type: string
+                  enum: [vacation, working]
+                  example: vacation
+                note:
+                  type: string
+                  nullable: true
+                  example: "Summer holiday"
+      responses:
+        "201":
+          description: Day upserted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /days/batch:
+    post:
+      summary: Bulk upsert or delete day records
+      description: |
+        Bulk operation on multiple dates at once.
+        - `day_type = vacation` → upsert all dates as vacation
+        - `day_type = working` → delete records for those dates (working is the implicit default)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [dates, day_type]
+              properties:
+                dates:
+                  type: array
+                  items:
+                    type: string
+                    format: date
+                  minItems: 1
+                  example: ["2025-08-11", "2025-08-12", "2025-08-13"]
+                day_type:
+                  type: string
+                  enum: [vacation, working]
+                  example: vacation
+      responses:
+        "200":
+          description: Batch operation completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  count:
+                    type: integer
+                    example: 3
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /days/{date}:
+    parameters:
+      - name: date
+        in: path
+        required: true
+        schema:
+          type: string
+          format: date
+        example: "2025-08-15"
+
+    get:
+      summary: Get a specific day record
+      description: Returns the stored day record for the given date. Returns 404 if no record exists (i.e. it's a normal working day).
+      responses:
+        "200":
+          description: Day record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DayRecord"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      summary: Update a day record
+      description: Upserts a day with the given type. Supports `working_weekend` in addition to `vacation` and `working`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [dayType]
+              properties:
+                dayType:
+                  type: string
+                  enum: [vacation, working, working_weekend]
+                  example: working_weekend
+                note:
+                  type: string
+                  nullable: true
+      responses:
+        "200":
+          description: Day updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+    delete:
+      summary: Remove a day marking
+      description: Deletes the day record, reverting the day to its default (normal working day).
+      responses:
+        "200":
+          description: Day deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /settings:
+    get:
+      summary: Read all settings
+      description: Returns all settings as a flat key-value object. Known keys include `vacation_budget` and `non_working_weekdays`.
+      responses:
+        "200":
+          description: Settings key-value map
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: string
+              example:
+                vacation_budget: "25"
+                non_working_weekdays: "[3]"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    put:
+      summary: Write settings
+      description: Upserts one or more settings. All values must be strings.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                type: string
+            example:
+              vacation_budget: "25"
+              non_working_weekdays: "[3]"
+      responses:
+        "200":
+          description: Settings updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /projects:
+    get:
+      summary: List all projects
+      responses:
+        "200":
+          description: Array of projects
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Project"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    post:
+      summary: Create a project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, weekdays]
+              properties:
+                name:
+                  type: string
+                  example: "Client A"
+                colour:
+                  type: string
+                  description: Hex colour (auto-assigned if omitted)
+                  example: "#4f86c6"
+                start_date:
+                  type: string
+                  format: date
+                  nullable: true
+                  example: "2025-01-01"
+                end_date:
+                  type: string
+                  format: date
+                  nullable: true
+                  example: "2025-12-31"
+                weekdays:
+                  type: array
+                  items:
+                    type: integer
+                    minimum: 0
+                    maximum: 6
+                  minItems: 1
+                  example: [1, 2, 3, 4, 5]
+      responses:
+        "201":
+          description: Project created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /projects/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+
+    get:
+      summary: Get one project
+      responses:
+        "200":
+          description: Project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    put:
+      summary: Update a project
+      description: Partial update — only include fields you want to change.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                colour:
+                  type: string
+                start_date:
+                  type: string
+                  format: date
+                  nullable: true
+                end_date:
+                  type: string
+                  format: date
+                  nullable: true
+                weekdays:
+                  type: array
+                  items:
+                    type: integer
+                    minimum: 0
+                    maximum: 6
+      responses:
+        "200":
+          description: Updated project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    delete:
+      summary: Delete a project
+      description: Deletes the project and all its day overrides (cascade).
+      responses:
+        "204":
+          description: Project deleted
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /projects/{id}/working-days:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      summary: Per-project working day stats
+      description: Returns working day stats scoped to the project's weekday mask and day overrides.
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          example: "2025-01-01"
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          example: "2025-12-31"
+      responses:
+        "200":
+          description: Project working day summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectWorkingDaySummary"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /projects/{id}/overrides:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+
+    get:
+      summary: List day overrides for a project
+      responses:
+        "200":
+          description: Array of overrides
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProjectDayOverride"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+    post:
+      summary: Upsert a day override
+      description: |
+        - `include` — force this date into the project (even if weekday mask wouldn't match)
+        - `exclude` — force this date out of the project (even if weekday mask would match)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [date, type]
+              properties:
+                date:
+                  type: string
+                  format: date
+                  example: "2025-06-10"
+                type:
+                  type: string
+                  enum: [include, exclude]
+                  example: exclude
+      responses:
+        "200":
+          description: Override upserted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectDayOverride"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /projects/{id}/overrides/{date}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: date
+        in: path
+        required: true
+        schema:
+          type: string
+          format: date
+        example: "2025-06-10"
+
+    delete:
+      summary: Remove a day override
+      description: Deletes the override, reverting the day to its weekday-mask default.
+      responses:
+        "204":
+          description: Override deleted
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/InternalError"

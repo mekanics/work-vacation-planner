@@ -1,3 +1,4 @@
+// See /openapi.yaml for spec
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { calculateWorkingDays } from '@/lib/services/working-days';
