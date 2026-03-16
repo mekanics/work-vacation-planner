@@ -281,6 +281,14 @@ paths:
             minimum: 2000
             maximum: 2100
           example: 2025
+        - name: project
+          in: query
+          required: false
+          description: Optional project UUID. When provided, returns project-specific working days per month instead of global stats.
+          schema:
+            type: string
+            format: uuid
+          example: a5f12314-ef62-4496-ab9a-fb01b5183f68
       responses:
         "200":
           description: Yearly summary with monthly breakdown
@@ -290,6 +298,8 @@ paths:
                 $ref: "#/components/schemas/YearlySummary"
         "400":
           $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
         "500":
           $ref: "#/components/responses/InternalError"
 
