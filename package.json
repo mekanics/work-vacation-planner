@@ -1,6 +1,6 @@
 {
 	"name": "work-vacation-planner",
-	"version": "1.0.6",
+	"version": "1.1.0",
 	"private": true,
 	"scripts": {
 		"dev": "next dev",
@@ -47,9 +47,18 @@
 	},
 	"pnpm": {
 		"supportedArchitectures": {
-			"os": ["linux", "darwin"],
-			"cpu": ["x64", "arm64"],
-			"libc": ["glibc", "musl"]
+			"os": [
+				"linux",
+				"darwin"
+			],
+			"cpu": [
+				"x64",
+				"arm64"
+			],
+			"libc": [
+				"glibc",
+				"musl"
+			]
 		}
 	}
 }
