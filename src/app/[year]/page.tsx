@@ -62,10 +62,15 @@ export default async function YearPage({ params }: PageProps) {
 
   // Fetch projects and their year-level working day counts + remaining from today
   const allProjects = await getProjects();
+  const yearProjects = allProjects.filter((project) => {
+    const startsBeforeYearEnd = !project.startDate || project.startDate <= yearTo;
+    const endsAfterYearStart = !project.endDate || project.endDate >= yearFrom;
+    return startsBeforeYearEnd && endsAfterYearStart;
+  });
   const today = format(new Date(), 'yyyy-MM-dd');
   const tomorrow = format(addDays(new Date(), 1), 'yyyy-MM-dd');
   const projectYearSummaries = await Promise.all(
-    allProjects.map(async (project) => {
+    yearProjects.map(async (project) => {
       const summary = await calculateProjectWorkingDays(project.id, yearFrom, yearTo);
       const effectiveTo = project.endDate && project.endDate >= today ? project.endDate : yearTo;
       const remaining = tomorrow <= effectiveTo
