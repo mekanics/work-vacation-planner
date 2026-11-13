@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Work & Vacation Planner API
-  version: 1.0.0
+  version: 1.1.0
   description: |
     REST API for the Work & Vacation Planner — a homelab tool for tracking
     working days, vacation budgets, public holidays, and project schedules.
@@ -22,6 +22,62 @@ components:
         error:
           type: string
           example: Invalid date format (YYYY-MM-DD)
+
+    Client:
+      type: object
+      required: [id, name, colour, defaultWeekdays, archived, isSystem, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: acme
+        colour:
+          type: string
+          description: Default project colour, used when a project has no colour override
+          example: "#4f86c6"
+        defaultWeekdays:
+          type: array
+          items:
+            type: integer
+            minimum: 0
+            maximum: 6
+          description: Weekday template copied only when a project is created
+          example: [1, 2, 3, 4, 5]
+        archived:
+          type: boolean
+        isSystem:
+          type: boolean
+          description: True for the protected Internal client
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ClientWorkingDayTotals:
+      type: object
+      required: [client_id, client_name, colour, project_count, total_project_days, holidays, vacation_days, working_days]
+      properties:
+        client_id:
+          type: string
+          format: uuid
+        client_name:
+          type: string
+        colour:
+          type: string
+        project_count:
+          type: integer
+        total_project_days:
+          type: integer
+        holidays:
+          type: integer
+        vacation_days:
+          type: integer
+        working_days:
+          type: integer
 
     DayRecord:
       type: object
@@ -123,7 +179,7 @@ components:
 
     Project:
       type: object
-      required: [id, name, colour, weekdays, createdAt, updatedAt]
+      required: [id, name, clientId, clientName, endClient, colour, colourOverride, weekdays, createdAt, updatedAt]
       properties:
         id:
           type: string
@@ -132,10 +188,27 @@ components:
         name:
           type: string
           example: "Client A"
+        clientId:
+          type: string
+          format: uuid
+          description: Owning client ID
+        clientName:
+          type: string
+          example: acme
+        endClient:
+          type: string
+          nullable: true
+          description: Optional human-readable end-client label
+          example: "Alpha"
         colour:
           type: string
-          description: Hex colour string
+          description: Effective colour (project override or client colour)
           example: "#4f86c6"
+        colourOverride:
+          type: string
+          nullable: true
+          description: Stored project colour override; null means use the client colour
+          example: null
         startDate:
           type: string
           format: date
@@ -214,6 +287,12 @@ components:
             $ref: "#/components/schemas/ErrorResponse"
     NotFound:
       description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Conflict:
+      description: Conflict (protected system client or client with linked projects)
       content:
         application/json:
           schema:
@@ -540,6 +619,171 @@ paths:
         "500":
           $ref: "#/components/responses/InternalError"
 
+  /clients:
+    get:
+      summary: List all clients
+      description: Includes archived clients and the Internal system client for management. Client reports exclude Internal by default.
+      responses:
+        "200":
+          description: Array of clients
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Client"
+        "500":
+          $ref: "#/components/responses/InternalError"
+    post:
+      summary: Create a client
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                colour:
+                  type: string
+                defaultWeekdays:
+                  type: array
+                  items:
+                    type: integer
+                    minimum: 0
+                    maximum: 6
+                  minItems: 1
+                  default: [1, 2, 3, 4, 5]
+                archived:
+                  type: boolean
+                  default: false
+      responses:
+        "201":
+          description: Client created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Client"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
+  /clients/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      summary: Get one client
+      responses:
+        "200":
+          description: Client
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Client"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      summary: Update a client
+      description: Partial update. Weekday changes affect only projects created afterwards.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                colour:
+                  type: string
+                defaultWeekdays:
+                  type: array
+                  items:
+                    type: integer
+                    minimum: 0
+                    maximum: 6
+                  minItems: 1
+                archived:
+                  type: boolean
+      responses:
+        "200":
+          description: Updated client
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Client"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      summary: Delete an unused client
+      description: Returns 409 for the Internal system client or when projects still reference the client.
+      responses:
+        "204":
+          description: Client deleted
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+
+  /reports/clients:
+    get:
+      summary: Working-day totals grouped by client
+      description: Aggregates project totals by client. The Internal system client is excluded unless includeInternal=true.
+      parameters:
+        - name: from
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: includeInternal
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: false
+      responses:
+        "200":
+          description: Client totals for the requested range
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [from, to, includeInternal, clients]
+                properties:
+                  from:
+                    type: string
+                    format: date
+                  to:
+                    type: string
+                    format: date
+                  includeInternal:
+                    type: boolean
+                  clients:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ClientWorkingDayTotals"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalError"
+
   /projects:
     get:
       summary: List all projects
@@ -563,14 +807,21 @@ paths:
           application/json:
             schema:
               type: object
-              required: [name, weekdays]
+              required: [name, clientId]
               properties:
                 name:
                   type: string
                   example: "Client A"
+                clientId:
+                  type: string
+                  format: uuid
+                endClient:
+                  type: string
+                  nullable: true
                 colour:
                   type: string
-                  description: Hex colour (auto-assigned if omitted)
+                  nullable: true
+                  description: Optional project override; null/omitted uses the client colour
                   example: "#4f86c6"
                 start_date:
                   type: string
@@ -584,6 +835,7 @@ paths:
                   example: "2025-12-31"
                 weekdays:
                   type: array
+                  description: Optional creation-time override; omitted copies client defaultWeekdays
                   items:
                     type: integer
                     minimum: 0
@@ -628,7 +880,7 @@ paths:
 
     put:
       summary: Update a project
-      description: Partial update — only include fields you want to change.
+      description: Partial update — only include fields you want to change. Changing clientId never recopies weekday defaults.
       requestBody:
         required: true
         content:
@@ -638,8 +890,16 @@ paths:
               properties:
                 name:
                   type: string
+                clientId:
+                  type: string
+                  format: uuid
+                endClient:
+                  type: string
+                  nullable: true
                 colour:
                   type: string
+                  nullable: true
+                  description: Set null to clear the override and use the client colour
                 start_date:
                   type: string
                   format: date

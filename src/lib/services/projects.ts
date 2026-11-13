@@ -1,5 +1,5 @@
 import { db } from '@/lib/db';
-import { days, projects, projectDayOverrides } from '@/lib/db/schema';
+import { clients, days, projects, projectDayOverrides } from '@/lib/db/schema';
 import { and, eq, gte, lte } from 'drizzle-orm';
 import { eachDayInRange, toISODate } from '@/lib/utils/dates';
 import { getHolidayDateSet } from './holidays';
@@ -16,7 +16,12 @@ export interface ProjectDayOverride {
 export interface ProjectRecord {
   id: string;
   name: string;
+  clientId: string;
+  clientName: string;
+  endClient: string | null;
+  /** Effective colour: the project override, or the owning client's colour. */
   colour: string;
+  colourOverride: string | null;
   startDate: string | null;
   endDate: string | null;
   weekdays: number[];
@@ -45,16 +50,25 @@ function parseWeekdays(raw: string): number[] {
   }
 }
 
-function rowToRecord(row: typeof projects.$inferSelect): ProjectRecord {
+interface ProjectClientJoin {
+  project: typeof projects.$inferSelect;
+  client: typeof clients.$inferSelect;
+}
+
+function rowToRecord({ project, client }: ProjectClientJoin): ProjectRecord {
   return {
-    id: row.id,
-    name: row.name,
-    colour: row.colour,
-    startDate: row.startDate ?? null,
-    endDate: row.endDate ?? null,
-    weekdays: parseWeekdays(row.weekdays),
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
+    id: project.id,
+    name: project.name,
+    clientId: project.clientId,
+    clientName: client.name,
+    endClient: project.endClient ?? null,
+    colour: project.colour ?? client.colour,
+    colourOverride: project.colour ?? null,
+    startDate: project.startDate ?? null,
+    endDate: project.endDate ?? null,
+    weekdays: parseWeekdays(project.weekdays),
+    createdAt: project.createdAt,
+    updatedAt: project.updatedAt,
   };
 }
 
@@ -62,13 +76,20 @@ function rowToRecord(row: typeof projects.$inferSelect): ProjectRecord {
 
 /** Fetch all projects from DB, ordered by creation date. */
 export async function getProjects(): Promise<ProjectRecord[]> {
-  const rows = await db.select().from(projects);
+  const rows = await db
+    .select({ project: projects, client: clients })
+    .from(projects)
+    .innerJoin(clients, eq(projects.clientId, clients.id));
   return rows.map(rowToRecord);
 }
 
 /** Fetch a single project by ID. Returns null if not found. */
 export async function getProject(id: string): Promise<ProjectRecord | null> {
-  const rows = await db.select().from(projects).where(eq(projects.id, id));
+  const rows = await db
+    .select({ project: projects, client: clients })
+    .from(projects)
+    .innerJoin(clients, eq(projects.clientId, clients.id))
+    .where(eq(projects.id, id));
   return rows.length > 0 ? rowToRecord(rows[0]) : null;
 }
 
