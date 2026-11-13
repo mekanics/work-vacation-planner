@@ -11,7 +11,7 @@ A self-hosted work calendar for tracking working days, vacation, and public holi
 - **Year & month views** — working days, vacation, public holidays at a glance
 - **Canton-aware Swiss holidays** — all 26 cantons + national only, sourced from [openholidays.org](https://openholidaysapi.org)
 - **Vacation tracking** — click days to mark vacation; annual budget tracker shows days used vs. target
-- **Projects** — colour-coded projects scoped to weekdays/date ranges; tracks working days, days remaining, next working day
+- **Clients & projects** — group projects by client, copy client weekday templates at project creation, optionally label end clients, and override inherited colours
 - **Non-working weekdays** — configure recurring non-working days (e.g. "I never work Fridays")
 - **Working weekends** — mark exception days where you work on a Saturday or Sunday
 - **CSV export** — full year export with day type, holidays, and projects
@@ -32,17 +32,17 @@ Open [http://localhost:3000](http://localhost:3000). Select your canton in setti
 ## Development
 
 ```bash
-npm install
-npm run db:migrate   # creates dev.db and runs migrations
-npm run dev          # http://localhost:3000
+pnpm install
+pnpm db:migrate      # creates dev.db, runs schema migrations, and applies the one-time client mapping
+pnpm dev             # http://localhost:3000
 ```
 
 Run tests:
 
 ```bash
-npm test             # vitest run
-npm run lint         # eslint
-npx tsc --noEmit     # typecheck
+pnpm test            # vitest run
+pnpm lint            # eslint
+pnpm exec tsc --noEmit  # typecheck
 ```
 
 ---
@@ -59,7 +59,7 @@ Canton is configured in the app settings UI, not via environment variable.
 
 ## API
 
-The app exposes a REST API documented with OpenAPI 3.1.
+The app exposes a REST API documented with OpenAPI 3.0.
 
 - **Swagger UI:** [http://localhost:3000/docs](http://localhost:3000/docs) — interactive, try-it-out browser
 - **OpenAPI spec:** [http://localhost:3000/openapi.yaml](http://localhost:3000/openapi.yaml) — importable into n8n, Postman, Insomnia, etc.
@@ -78,6 +78,12 @@ The app exposes a REST API documented with OpenAPI 3.1.
 | `DELETE` | `/api/days/{date}`                     | Remove a day marking                       |
 | `GET`    | `/api/settings`                        | Read all settings key-value pairs          |
 | `PUT`    | `/api/settings`                        | Write settings                             |
+| `GET`    | `/api/clients`                         | List all clients                           |
+| `POST`   | `/api/clients`                         | Create a client                            |
+| `GET`    | `/api/clients/{id}`                    | Get one client                             |
+| `PUT`    | `/api/clients/{id}`                    | Update a client                            |
+| `DELETE` | `/api/clients/{id}`                    | Delete an unused, non-system client        |
+| `GET`    | `/api/reports/clients`                 | Client totals (Internal excluded by default) |
 | `GET`    | `/api/projects`                        | List all projects                          |
 | `POST`   | `/api/projects`                        | Create a project                           |
 | `GET`    | `/api/projects/{id}`                   | Get one project                            |
