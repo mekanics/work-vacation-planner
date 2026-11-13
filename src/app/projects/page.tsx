@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 import Link from 'next/link';
 import { getProjects, calculateProjectWorkingDays } from '@/lib/services/projects';
+import { getClients } from '@/lib/services/clients';
 import { ProjectsList } from '@/components/projects/ProjectsList';
 
 export const metadata = {
@@ -8,7 +9,7 @@ export const metadata = {
 };
 
 export default async function ProjectsPage() {
-  const allProjects = await getProjects();
+  const [allProjects, allClients] = await Promise.all([getProjects(), getClients()]);
 
   // Calculate working days for the current year for each project
   const currentYear = new Date().getFullYear();
@@ -47,6 +48,7 @@ export default async function ProjectsPage() {
       {/* Projects list with modal for new project */}
       <ProjectsList
         projects={allProjects}
+        clients={allClients}
         yearWorkingDays={yearWorkingDays}
       />
     </div>

@@ -3,17 +3,14 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { format, addMonths, subMonths } from 'date-fns';
+import type { ClientRecord } from '@/lib/services/clients';
 import type { ProjectRecord, ProjectDayOverride, ProjectWorkingDaySummary } from '@/lib/services/projects';
+import { ProjectFormFields, projectToForm, type ProjectFormState } from './ProjectFormFields';
 import type { ProjectCalendarDay } from './ProjectMonthGrid';
 import { ProjectMonthGrid } from './ProjectMonthGrid';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const PRESET_COLOURS = [
-  '#4f86c6', '#e67e22', '#27ae60', '#9b59b6', '#e74c3c', '#1abc9c',
-];
-
-const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const WEEKDAY_SHORT = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 const WEEKDAY_NUMS = [1, 2, 3, 4, 5, 6, 0]; // Mon–Sun display order
 
@@ -21,16 +18,9 @@ const WEEKDAY_NUMS = [1, 2, 3, 4, 5, 6, 0]; // Mon–Sun display order
 
 type Tab = 'overview' | 'calendar';
 
-interface ProjectFormState {
-  name: string;
-  colour: string;
-  startDate: string;
-  endDate: string;
-  weekdays: number[];
-}
-
 export interface ProjectDetailProps {
   project: ProjectRecord;
+  clients: ClientRecord[];
   yearWorkingDays: number;
   daysRemaining: number;
   workingDaysRemaining: number;
@@ -47,32 +37,19 @@ export interface ProjectDetailProps {
 
 interface EditModalProps {
   project: ProjectRecord;
+  clients: ClientRecord[];
   onClose: () => void;
   onSaved: () => void;
 }
 
-function EditModal({ project, onClose, onSaved }: EditModalProps) {
-  const [form, setForm] = useState<ProjectFormState>({
-    name: project.name,
-    colour: project.colour,
-    startDate: project.startDate ?? '',
-    endDate: project.endDate ?? '',
-    weekdays: [...project.weekdays],
-  });
+function EditModal({ project, clients, onClose, onSaved }: EditModalProps) {
+  const [form, setForm] = useState<ProjectFormState>(() => projectToForm(project));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleWeekdayToggle = (day: number) => {
-    setForm((prev) => ({
-      ...prev,
-      weekdays: prev.weekdays.includes(day)
-        ? prev.weekdays.filter((d) => d !== day)
-        : [...prev.weekdays, day],
-    }));
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!form.clientId) { setError('Client is required'); return; }
     if (!form.name.trim()) { setError('Project name is required'); return; }
     if (form.weekdays.length === 0) { setError('Select at least one working day'); return; }
 
@@ -84,7 +61,9 @@ function EditModal({ project, onClose, onSaved }: EditModalProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: form.name.trim(),
-          colour: form.colour,
+          clientId: form.clientId,
+          endClient: form.endClient.trim() || null,
+          colour: form.colourOverride || null,
           start_date: form.startDate || null,
           end_date: form.endDate || null,
           weekdays: form.weekdays,
@@ -115,85 +94,7 @@ function EditModal({ project, onClose, onSaved }: EditModalProps) {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Name */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Project name</label>
-            <input
-              type="text"
-              value={form.name}
-              onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-              className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-              autoFocus
-            />
-          </div>
-
-          {/* Colour picker */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Colour</label>
-            <div className="flex gap-2">
-              {PRESET_COLOURS.map((colour) => (
-                <button
-                  key={colour}
-                  type="button"
-                  onClick={() => setForm((p) => ({ ...p, colour }))}
-                  className="w-7 h-7 rounded-full border-2 transition-transform"
-                  style={{
-                    backgroundColor: colour,
-                    borderColor: form.colour === colour ? '#1e293b' : 'transparent',
-                    transform: form.colour === colour ? 'scale(1.2)' : 'scale(1)',
-                  }}
-                  title={colour}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Weekdays */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Working days</label>
-            <div className="flex gap-2">
-              {WEEKDAY_NUMS.map((day) => (
-                <button
-                  key={day}
-                  type="button"
-                  onClick={() => handleWeekdayToggle(day)}
-                  className={`w-10 h-9 rounded text-xs font-medium border transition-colors ${
-                    form.weekdays.includes(day)
-                      ? 'bg-indigo-100 border-indigo-400 text-indigo-700'
-                      : 'bg-white border-gray-200 text-gray-400 hover:border-gray-400'
-                  }`}
-                >
-                  {WEEKDAY_LABELS[day]}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Date range */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Start date <span className="text-gray-400">(optional)</span>
-              </label>
-              <input
-                type="date"
-                value={form.startDate}
-                onChange={(e) => setForm((p) => ({ ...p, startDate: e.target.value }))}
-                className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                End date <span className="text-gray-400">(optional)</span>
-              </label>
-              <input
-                type="date"
-                value={form.endDate}
-                onChange={(e) => setForm((p) => ({ ...p, endDate: e.target.value }))}
-                className="w-full border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
-              />
-            </div>
-          </div>
+          <ProjectFormFields form={form} clients={clients} isNew={false} onChange={setForm} />
 
           {/* Actions */}
           <div className="flex gap-2 pt-1">
@@ -440,6 +341,7 @@ function CalendarTab({ project, initialMonth, calendarDays, calendarSummary }: C
 
 export function ProjectDetail({
   project,
+  clients,
   yearWorkingDays,
   daysRemaining,
   workingDaysRemaining,
@@ -496,6 +398,9 @@ export function ProjectDetail({
             />
             <h1 className="text-xl font-bold text-gray-900 truncate">{project.name}</h1>
           </div>
+          <p className="text-sm text-gray-500">
+            {project.clientName}{project.endClient ? ` · End client: ${project.endClient}` : ''}
+          </p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <button
@@ -558,6 +463,7 @@ export function ProjectDetail({
       {showEdit && (
         <EditModal
           project={project}
+          clients={clients}
           onClose={() => setShowEdit(false)}
           onSaved={handleEditSaved}
         />
