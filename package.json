@@ -10,7 +10,7 @@
 		"test": "vitest run",
 		"test:watch": "vitest",
 		"db:generate": "drizzle-kit generate",
-		"db:migrate": "drizzle-kit migrate",
+		"db:migrate": "node --experimental-strip-types scripts/migrate.ts",
 		"db:studio": "drizzle-kit studio"
 	},
 	"dependencies": {

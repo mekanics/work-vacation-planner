@@ -23,10 +23,23 @@ export const settings = sqliteTable('settings', {
   value: text('value').notNull(),
 });
 
-export const projects = sqliteTable('projects', {
+export const clients = sqliteTable('clients', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
   colour: text('colour').notNull(), // hex e.g. '#6366f1'
+  defaultWeekdays: text('default_weekdays').notNull(), // JSON array, copied to new projects
+  archived: integer('archived', { mode: 'boolean' }).notNull().default(false),
+  isSystem: integer('is_system', { mode: 'boolean' }).notNull().default(false),
+  createdAt: text('created_at').notNull(),
+  updatedAt: text('updated_at').notNull(),
+});
+
+export const projects = sqliteTable('projects', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  clientId: text('client_id').notNull().references(() => clients.id, { onDelete: 'restrict' }),
+  endClient: text('end_client'),
+  colour: text('colour'), // optional override; null falls back to the client colour
   startDate: text('start_date'),    // nullable, YYYY-MM-DD
   endDate: text('end_date'),        // nullable, YYYY-MM-DD
   weekdays: text('weekdays').notNull(), // JSON array e.g. '[1,2,3,4]'
