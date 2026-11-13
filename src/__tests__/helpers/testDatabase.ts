@@ -16,7 +16,7 @@ export async function createCurrentTestSchema(client: Client): Promise<void> {
     `CREATE TABLE projects (
       id text PRIMARY KEY NOT NULL,
       name text NOT NULL,
-      client_id text NOT NULL REFERENCES clients(id) ON UPDATE cascade ON DELETE restrict,
+      client_id text NOT NULL REFERENCES clients(id) ON DELETE restrict,
       end_client text,
       colour text,
       start_date text,
@@ -33,7 +33,7 @@ export async function createCurrentTestSchema(client: Client): Promise<void> {
       updated_at text NOT NULL
     )`,
     `CREATE TABLE project_day_overrides (
-      project_id text NOT NULL REFERENCES projects(id) ON UPDATE cascade ON DELETE cascade,
+      project_id text NOT NULL REFERENCES projects(id) ON DELETE cascade,
       date text NOT NULL,
       type text NOT NULL,
       PRIMARY KEY(project_id, date)

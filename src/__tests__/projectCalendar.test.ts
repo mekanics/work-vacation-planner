@@ -6,7 +6,11 @@ function makeProject(overrides: Partial<ProjectRecord> = {}): ProjectRecord {
   return {
     id: 'proj-1',
     name: 'Test Project',
+    clientId: 'client-1',
+    clientName: 'Test Client',
+    endClient: null,
     colour: '#6366f1',
+    colourOverride: '#6366f1',
     startDate: null,
     endDate: null,
     weekdays: [1, 2, 3, 4, 5], // Mon-Fri
