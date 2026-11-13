@@ -30,6 +30,7 @@ COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/drizzle ./drizzle
 COPY --from=builder /app/scripts ./scripts
+COPY --from=builder /app/src/lib/db/client-migration.ts ./src/lib/db/client-migration.ts
 COPY entrypoint.sh ./entrypoint.sh
 
 # drizzle-orm is pure JS so Next.js bundles it inline — it won't be in

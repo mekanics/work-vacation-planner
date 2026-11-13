@@ -36,6 +36,13 @@
       "when": 1773043000000,
       "tag": "0004_canton_composite_pk",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1794560773250,
+      "tag": "0005_add_clients",
+      "breakpoints": true
     }
   ]
 }

@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { projects } from '@/lib/db/schema';
+import type { clients, projects } from '@/lib/db/schema';
 
 // Mock DB module
 vi.mock('@/lib/db', () => ({
   db: {
     select: vi.fn().mockReturnThis(),
     from: vi.fn().mockReturnThis(),
+    innerJoin: vi.fn().mockReturnThis(),
     where: vi.fn(),
   },
 }));
@@ -19,17 +20,31 @@ import { calculateProjectWorkingDays } from '@/lib/services/projects';
 import { db } from '@/lib/db';
 import { getHolidayDateSet } from '@/lib/services/holidays';
 
-function makeProject(overrides: Partial<typeof projects.$inferSelect> = {}): typeof projects.$inferSelect {
+function makeProject(overrides: Partial<typeof projects.$inferSelect> = {}) {
   return {
-    id: 'proj-1',
-    name: 'Test Project',
-    colour: '#6366f1',
-    startDate: null,
-    endDate: null,
-    weekdays: JSON.stringify([1, 2, 3, 4, 5]), // Mon-Fri
-    createdAt: '2024-01-01T00:00:00Z',
-    updatedAt: '2024-01-01T00:00:00Z',
-    ...overrides,
+    project: {
+      id: 'proj-1',
+      name: 'Test Project',
+      clientId: 'client-1',
+      endClient: null,
+      colour: '#6366f1',
+      startDate: null,
+      endDate: null,
+      weekdays: JSON.stringify([1, 2, 3, 4, 5]), // Mon-Fri
+      createdAt: '2024-01-01T00:00:00Z',
+      updatedAt: '2024-01-01T00:00:00Z',
+      ...overrides,
+    },
+    client: {
+      id: 'client-1',
+      name: 'Test Client',
+      colour: '#123456',
+      defaultWeekdays: '[1,2,3,4,5]',
+      archived: false,
+      isSystem: false,
+      createdAt: '2024-01-01T00:00:00Z',
+      updatedAt: '2024-01-01T00:00:00Z',
+    } satisfies typeof clients.$inferSelect,
   };
 }
 
