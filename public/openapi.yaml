@@ -385,7 +385,7 @@ paths:
   /export:
     get:
       summary: CSV export of all working days for a year
-      description: Downloads a CSV file listing every working day (weekdays only, excluding regular weekends) with type, holiday name, and active projects.
+      description: Downloads a CSV file listing every working day (weekdays only, excluding regular weekends) with type, holiday name, active projects, owning client, and end-client label.
       parameters:
         - name: year
           in: query
@@ -403,9 +403,9 @@ paths:
               schema:
                 type: string
               example: |
-                Date,DayOfWeek,Type,Holiday Name,Projects
-                2025-01-01,Wednesday,Holiday,New Year's Day,
-                2025-01-02,Thursday,Working,,Client A
+                Date,DayOfWeek,Type,Holiday Name,Projects,Client,End Client
+                2025-01-01,Wednesday,Holiday,New Year's Day,,,
+                2025-01-02,Thursday,Working,,Client A,acme,Alpha
         "400":
           $ref: "#/components/responses/BadRequest"
 
