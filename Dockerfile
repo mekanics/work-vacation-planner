@@ -1,19 +1,18 @@
 # syntax=docker/dockerfile:1
 
-# base and build stages run on the BUILD platform (native amd64 on CI)
-# so pnpm install and Next.js compilation never run under QEMU emulation.
-# Only the runner stage targets the final platform (arm64 or amd64).
-FROM --platform=$BUILDPLATFORM node:22-alpine AS base
+# Build every stage for the target platform so native dependencies match the
+# final image. Multi-architecture builds use QEMU for the non-native platform.
+FROM node:22-alpine AS base
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
 # Dependencies
-FROM --platform=$BUILDPLATFORM base AS deps
+FROM base AS deps
 WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 
 # Builder
-FROM --platform=$BUILDPLATFORM base AS builder
+FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
