@@ -59,6 +59,10 @@
 				"glibc",
 				"musl"
 			]
-		}
+		},
+		"onlyBuiltDependencies": [
+			"@scarf/scarf",
+			"@tree-sitter-grammars/tree-sitter-yaml"
+		]
 	}
 }
