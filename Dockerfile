@@ -9,7 +9,7 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 # Dependencies
 FROM --platform=$BUILDPLATFORM base AS deps
 WORKDIR /app
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 
 # Builder
