@@ -48,8 +48,12 @@ export async function GET(request: NextRequest) {
     });
   }
 
+  // Escape a CSV field: quote only when the value contains a comma
+  const escapeCsv = (value: string): string =>
+    value.includes(',') ? `"${value.replace(/"/g, '""')}"` : value;
+
   // Build CSV rows
-  const rows: string[] = ['Date,DayOfWeek,Type,Holiday Name,Projects'];
+  const rows: string[] = ['Date,DayOfWeek,Type,Holiday Name,Projects,Client,End Client'];
 
   const allDates = eachDayOfInterval({
     start: parseISO(yearFrom),
@@ -84,6 +88,8 @@ export async function GET(request: NextRequest) {
 
     // Determine active projects for this day
     const activeProjectNames: string[] = [];
+    const activeClientNames: string[] = [];
+    const activeEndClients: string[] = [];
     if (!isNonWorkingWeekday && !isWeekendDay || isWorkingWeekend) {
       for (const project of allProjects) {
         if (project.startDate && iso < project.startDate) continue;
@@ -96,20 +102,30 @@ export async function GET(request: NextRequest) {
 
         if (matchesMask || hasInclude) {
           activeProjectNames.push(project.name);
+          activeClientNames.push(project.clientName);
+          if (project.endClient) {
+            activeEndClients.push(project.endClient);
+          }
         }
       }
     }
 
-    // Escape CSV fields
-    const csvHolidayName = holidayName.includes(',')
-      ? `"${holidayName.replace(/"/g, '""')}"`
-      : holidayName;
+    // Deduplicate while preserving order
     const csvProjects = activeProjectNames.join('; ');
-    const csvProjectsField = csvProjects.includes(',')
-      ? `"${csvProjects.replace(/"/g, '""')}"`
-      : csvProjects;
+    const csvClient = [...new Set(activeClientNames)].join('; ');
+    const csvEndClient = [...new Set(activeEndClients)].join('; ');
 
-    rows.push(`${iso},${DAY_NAMES[dow]},${type},${csvHolidayName},${csvProjectsField}`);
+    rows.push(
+      [
+        iso,
+        DAY_NAMES[dow],
+        type,
+        escapeCsv(holidayName),
+        escapeCsv(csvProjects),
+        escapeCsv(csvClient),
+        escapeCsv(csvEndClient),
+      ].join(',')
+    );
   }
 
   const csv = rows.join('\r\n');

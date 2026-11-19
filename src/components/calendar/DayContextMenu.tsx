@@ -57,6 +57,15 @@ export function DayContextMenu({ day, children, onOverrideChange }: DayContextMe
   };
 
   const projectStripes: ProjectStripe[] = day.projectStripes ?? [];
+  const groupedProjects = new Map<string, { clientName: string; stripes: ProjectStripe[] }>();
+  for (const stripe of projectStripes) {
+    const group = groupedProjects.get(stripe.clientId) ?? {
+      clientName: stripe.clientName,
+      stripes: [],
+    };
+    group.stripes.push(stripe);
+    groupedProjects.set(stripe.clientId, group);
+  }
 
   const handleProjectToggle = async (stripe: ProjectStripe) => {
     close();
@@ -153,31 +162,35 @@ export function DayContextMenu({ day, children, onOverrideChange }: DayContextMe
                 </div>
               ) : (
                 <div className="py-1">
-                  {projectStripes.map((stripe, i) => (
-                    <button
-                      key={`${stripe.projectId}-${i}`}
-                      role="menuitem"
-                      type="button"
-                      className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 text-left transition-colors"
-                      onClick={() => void handleProjectToggle(stripe)}
-                    >
-                      <span
-                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: stripe.colour }}
-                      />
-                      <span className="flex-1 text-gray-800 truncate">
-                        {stripe.projectName || stripe.projectId}
-                      </span>
-                      <span
-                        className={
-                          stripe.included
-                            ? 'text-emerald-600 font-medium text-xs'
-                            : 'text-gray-400 text-xs'
-                        }
-                      >
-                        {stripe.included ? '✓ Included' : '○ Excluded'}
-                      </span>
-                    </button>
+                  {[...groupedProjects.entries()]
+                    .sort(([aId, a], [bId, b]) =>
+                      a.clientName.localeCompare(b.clientName) || aId.localeCompare(bId))
+                    .map(([clientId, { clientName, stripes }]) => (
+                    <div key={clientId}>
+                      <div className="px-3 pt-2 pb-1 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                        {clientName}
+                      </div>
+                      {stripes.map((stripe, i) => (
+                        <button
+                          key={`${stripe.projectId}-${i}`}
+                          role="menuitem"
+                          type="button"
+                          className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-gray-50 text-left transition-colors"
+                          onClick={() => void handleProjectToggle(stripe)}
+                        >
+                          <span
+                            className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: stripe.colour }}
+                          />
+                          <span className="flex-1 text-gray-800 truncate">
+                            {stripe.projectName || stripe.projectId}
+                          </span>
+                          <span className={stripe.included ? 'text-emerald-600 font-medium text-xs' : 'text-gray-400 text-xs'}>
+                            {stripe.included ? '✓ Included' : '○ Excluded'}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
                   ))}
                 </div>
               )}

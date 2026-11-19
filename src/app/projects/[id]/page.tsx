@@ -14,6 +14,7 @@ import {
 import { db } from '@/lib/db';
 import { days } from '@/lib/db/schema';
 import { and, gte, lte } from 'drizzle-orm';
+import { getClients } from '@/lib/services/clients';
 import { getHolidaysForYear, getHolidayDateSet } from '@/lib/services/holidays';
 import {
   getProject,
@@ -43,10 +44,11 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
   const yearTo = `${currentYear}-12-31`;
 
   // Fetch base data in parallel
-  const [yearSummary, overrides, holidaySet] = await Promise.all([
+  const [yearSummary, overrides, holidaySet, allClients] = await Promise.all([
     calculateProjectWorkingDays(id, yearFrom, yearTo),
     getProjectOverrides(id),
     getHolidayDateSet(currentYear),
+    getClients(),
   ]);
 
   const yearWorkingDays = yearSummary?.working_days ?? 0;
@@ -167,6 +169,7 @@ export default async function ProjectDetailPage({ params, searchParams }: PagePr
 
       <ProjectDetail
         project={project}
+        clients={allClients}
         yearWorkingDays={yearWorkingDays}
         daysRemaining={daysRemaining}
         workingDaysRemaining={workingDaysRemaining}

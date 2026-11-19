@@ -147,13 +147,13 @@ export default async function MonthPage({ params }: PageProps) {
       // - dashed hint (included=false) when excluded by override or mask miss on a weekday
       // For weekends: only show hint if there's an explicit exclude (to avoid clutter)
       if (included) {
-        projectStripes.push({ projectId: project.id, projectName: project.name, colour: project.colour, included: true, overrideType });
+        projectStripes.push({ projectId: project.id, projectName: project.name, clientId: project.clientId, clientName: project.clientName, colour: project.colour, included: true, overrideType });
       } else if (!day.isWeekend) {
         // Show a faint hint: mask miss or excluded override
-        projectStripes.push({ projectId: project.id, projectName: project.name, colour: project.colour, included: false, overrideType });
+        projectStripes.push({ projectId: project.id, projectName: project.name, clientId: project.clientId, clientName: project.clientName, colour: project.colour, included: false, overrideType });
       } else if (hasExcludeOverride) {
         // Weekend with explicit exclude — shouldn't normally happen, but show hint
-        projectStripes.push({ projectId: project.id, projectName: project.name, colour: project.colour, included: false, overrideType });
+        projectStripes.push({ projectId: project.id, projectName: project.name, clientId: project.clientId, clientName: project.clientName, colour: project.colour, included: false, overrideType });
       }
     }
 

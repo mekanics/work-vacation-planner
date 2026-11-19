@@ -43,7 +43,7 @@ export function DayCell({
   // Prefer rich stripe data; fall back to legacy projectColours for back-compat
   const projectStripes: ProjectStripe[] =
     day.projectStripes ??
-    (day.projectColours ?? []).map((colour) => ({ projectId: '', projectName: '', colour, included: true }));
+    (day.projectColours ?? []).map((colour) => ({ projectId: '', projectName: '', clientId: '', clientName: 'Projects', colour, included: true }));
 
   // Render up to 3 project colour stripes on the left edge (active days only — excluded days show nothing)
   const visibleStripes = projectStripes.filter((s) => s.included).slice(0, 3);

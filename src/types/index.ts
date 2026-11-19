@@ -19,6 +19,8 @@ export interface HolidayRecord {
 export interface ProjectStripe {
   projectId: string;
   projectName: string;
+  clientId: string;
+  clientName: string;
   colour: string;
   /** true = project day (solid stripe); false = not a project day (dashed hint) */
   included: boolean;

@@ -107,7 +107,7 @@ describe('GET /api/export — empty year (no holidays, vacation, projects)', () 
   it('CSV has header row as first line', async () => {
     const res = await GET(makeRequest('2024'));
     const lines = await getCsvLines(res);
-    expect(lines[0]).toBe('Date,DayOfWeek,Type,Holiday Name,Projects');
+    expect(lines[0]).toBe('Date,DayOfWeek,Type,Holiday Name,Projects,Client,End Client');
   });
 
   it('Mon–Fri weekdays appear in CSV with type "Working"', async () => {
@@ -130,21 +130,29 @@ describe('GET /api/export — empty year (no holidays, vacation, projects)', () 
     expect(sun).toBeUndefined();
   });
 
-  it('each data row has exactly 5 comma-separated fields', async () => {
+  it('each data row has exactly 7 comma-separated fields', async () => {
     const res = await GET(makeRequest('2024'));
     const lines = await getCsvLines(res);
     // Spot-check first 10 data rows (skip header)
     const dataLines = lines.slice(1, 11);
     for (const line of dataLines) {
       const fields = line.split(',');
-      expect(fields).toHaveLength(5);
+      expect(fields).toHaveLength(7);
     }
   });
 
-  it('header is exactly Date,DayOfWeek,Type,Holiday Name,Projects', async () => {
+  it('header is exactly Date,DayOfWeek,Type,Holiday Name,Projects,Client,End Client', async () => {
     const res = await GET(makeRequest('2024'));
     const rows = await parseCsv(res);
-    expect(rows[0]).toEqual(['Date', 'DayOfWeek', 'Type', 'Holiday Name', 'Projects']);
+    expect(rows[0]).toEqual([
+      'Date',
+      'DayOfWeek',
+      'Type',
+      'Holiday Name',
+      'Projects',
+      'Client',
+      'End Client',
+    ]);
   });
 });
 
@@ -225,17 +233,99 @@ describe('GET /api/export — working weekend', () => {
 // ─── CSV structure spot-check ─────────────────────────────────────────────────
 
 describe('GET /api/export — CSV structure spot-check', () => {
-  it('known date 2024-01-01 (Monday) has 5 fields: date, day, type, holiday name, projects', async () => {
+  it('known date 2024-01-01 (Monday) has 7 fields: date, day, type, holiday name, projects, client, end client', async () => {
     const res = await GET(makeRequest('2024'));
     const lines = await getCsvLines(res);
     const jan1 = lines.find((l) => l.startsWith('2024-01-01,'));
     expect(jan1).toBeDefined();
     const fields = jan1!.split(',');
-    expect(fields).toHaveLength(5);
+    expect(fields).toHaveLength(7);
     expect(fields[0]).toBe('2024-01-01');
     expect(fields[1]).toBe('Monday');
     expect(fields[2]).toBe('Working');
     expect(fields[3]).toBe(''); // no holiday name
     expect(fields[4]).toBe(''); // no projects
+    expect(fields[5]).toBe(''); // no client
+    expect(fields[6]).toBe(''); // no end client
+  });
+});
+
+// ─── Client and end-client columns ──────────────────────────────────────────
+
+describe('GET /api/export — client and end-client columns', () => {
+  it('a working day with an active project shows client and end client', async () => {
+    (getProjects as any).mockResolvedValue([
+      {
+        id: 'project-acme-001',
+        name: 'Acme Redesign',
+        clientId: 'client-acme-001',
+        clientName: 'acme',
+        endClient: 'Alpha',
+        colour: '#4f86c6',
+        colourOverride: null,
+        startDate: null,
+        endDate: null,
+        weekdays: [1, 2, 3, 4, 5],
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-01T00:00:00Z',
+      },
+    ]);
+    (getOverridesForProjects as any).mockResolvedValue(new Map());
+
+    const res = await GET(makeRequest('2024'));
+    const rows = await parseCsv(res);
+    const jan1 = rows.find((r) => r[0] === '2024-01-01');
+    expect(jan1).toBeDefined();
+    expect(jan1![4]).toBe('Acme Redesign');
+    expect(jan1![5]).toBe('acme');
+    expect(jan1![6]).toBe('Alpha');
+  });
+
+  it('vacation and holiday rows with no active project leave client/end client blank', async () => {
+    (db as any).where.mockResolvedValue([{ date: '2024-01-03', dayType: 'vacation' }]);
+    (getHolidaysForYear as any).mockResolvedValue([
+      { date: '2024-01-02', name: 'New Year Holiday', canton: 'ZH', year: 2024, global: 1 },
+    ]);
+
+    const res = await GET(makeRequest('2024'));
+    const rows = await parseCsv(res);
+    const holidayRow = rows.find((r) => r[0] === '2024-01-02');
+    const vacationRow = rows.find((r) => r[0] === '2024-01-03');
+    expect(holidayRow).toBeDefined();
+    expect(holidayRow![4]).toBe('');
+    expect(holidayRow![5]).toBe('');
+    expect(holidayRow![6]).toBe('');
+    expect(vacationRow).toBeDefined();
+    expect(vacationRow![4]).toBe('');
+    expect(vacationRow![5]).toBe('');
+    expect(vacationRow![6]).toBe('');
+  });
+
+  it('internal system project shows client name "Internal" verbatim', async () => {
+    (getProjects as any).mockResolvedValue([
+      {
+        id: 'project-internal-001',
+        name: 'Internal Planning',
+        clientId: 'client-internal-001',
+        clientName: 'Internal',
+        endClient: null,
+        colour: '#6366f1',
+        colourOverride: null,
+        startDate: null,
+        endDate: null,
+        weekdays: [1, 2, 3, 4, 5],
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-01T00:00:00Z',
+      },
+    ]);
+    (getOverridesForProjects as any).mockResolvedValue(new Map());
+
+    const res = await GET(makeRequest('2024'));
+    const rows = await parseCsv(res);
+    const jan1 = rows.find((r) => r[0] === '2024-01-01');
+    expect(jan1).toBeDefined();
+    expect(jan1![4]).toBe('Internal Planning');
+    expect(jan1![5]).toBe('Internal');
+    expect(jan1![6]).toBe('');
   });
 });

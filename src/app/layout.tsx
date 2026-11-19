@@ -36,6 +36,12 @@ export default function RootLayout({
             </div>
             <nav className="flex items-center gap-3">
               <Link
+                href="/clients"
+                className="text-sm text-gray-500 hover:text-gray-800 transition-colors"
+              >
+                Clients
+              </Link>
+              <Link
                 href="/projects"
                 className="text-sm text-gray-500 hover:text-gray-800 transition-colors"
               >
